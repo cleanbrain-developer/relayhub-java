@@ -6,7 +6,7 @@ This is the Java 21 / Spring Boot implementation. Other-language implementations
 
 ## Status
 
-Foundation phase — no application code yet. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists and what's next.
+Phase 1 — the first thin vertical slice (register -> ingress -> JSONPath extraction -> canonical event -> mapping -> target HTTP delivery) is implemented and passing its acceptance test. Retry/DLQ/Replay/Kafka are not built yet. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists and what's next.
 
 ## Documentation map
 
@@ -26,4 +26,9 @@ Start from [`CLAUDE.md`](CLAUDE.md) — it routes to the documents above in the 
 
 ## Running locally
 
-Not available yet — Docker Compose and the Gradle build will be added with Phase 1 implementation. See `docs/status/current-state.md` for the plan.
+```bash
+docker compose up -d      # Postgres only for now
+./gradlew bootRun
+```
+
+`docker compose up -d` has not been verified in this environment (no Docker daemon available at implementation time) — see `docs/status/current-state.md` ("Known constraints"). `./gradlew test` runs against an in-memory H2 database and does not require Docker.

@@ -5,7 +5,7 @@ project:
   repository: relayhub-java
   abbreviation: RelayHub
   type: service
-  lifecycle: design
+  lifecycle: active-development
 
 purpose:
   summary: >-
@@ -37,13 +37,14 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: v1-foundation
+  id: phase-1-vertical-slice
   status: active
   goal: >-
-    Establish the self-describing repository foundation (product, architecture,
-    decisions, working state) before implementation, then deliver the first
-    thin vertical slice: register -> ingress -> JSONPath extraction ->
-    canonical event -> mapping -> target HTTP delivery.
+    Harden and extend the first thin vertical slice (register -> ingress ->
+    JSONPath extraction -> canonical event -> mapping -> target HTTP delivery,
+    implemented and passing its acceptance test) before starting the
+    Reliability phase (Kafka, Transactional Outbox, Retry/Backoff, DLQ,
+    Replay, Idempotency enforcement).
 
 context:
   human_entrypoint: README.md
@@ -57,6 +58,6 @@ context:
   specs: specs/
 
 delivery:
-  implementation_present: false
+  implementation_present: true
   cli_present: false
   automation_present: false

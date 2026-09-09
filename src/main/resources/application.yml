@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: relayhub
+  datasource:
+    url: jdbc:postgresql://localhost:5432/relayhub
+    username: relayhub
+    password: relayhub
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        globally_quoted_identifiers: true
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+
+logging:
+  level:
+    me.cleanbrain.relayhub: INFO

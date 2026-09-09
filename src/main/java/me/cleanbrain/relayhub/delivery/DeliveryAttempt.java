@@ -1,0 +1,58 @@
+package me.cleanbrain.relayhub.delivery;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * One delivery attempt of a Canonical Event to a Target via a Subscription.
+ * Phase 1 records every attempt as a fresh row; Retry/Backoff/DLQ/Replay bookkeeping
+ * (see docs/architecture/system-design.md) is added in the Reliability phase.
+ */
+@Entity
+@Table(name = "delivery_attempts")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class DeliveryAttempt {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false)
+    private UUID eventId;
+
+    @Column(nullable = false)
+    private UUID subscriptionId;
+
+    @Column(nullable = false)
+    private UUID targetId;
+
+    @Column(nullable = false)
+    private int attemptNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DeliveryStatus status;
+
+    private Integer httpStatus;
+
+    @Lob
+    private String responseBody;
+
+    @Lob
+    private String errorMessage;
+
+    @CreationTimestamp
+    private Instant attemptedAt;
+}
