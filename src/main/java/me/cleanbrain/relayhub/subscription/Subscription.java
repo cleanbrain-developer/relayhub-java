@@ -11,6 +11,8 @@ import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.sourceevent.SourceEvent;
 import me.cleanbrain.relayhub.target.Target;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -51,7 +53,7 @@ public class Subscription {
     private String targetPath;
 
     /** JSON template with ${$.jsonpath} placeholders resolved against the Canonical Event's payload. */
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(nullable = false)
     private String targetPayloadTemplate;
 

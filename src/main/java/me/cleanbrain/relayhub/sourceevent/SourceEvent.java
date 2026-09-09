@@ -10,6 +10,8 @@ import me.cleanbrain.relayhub.common.HttpVerb;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.source.Source;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -72,7 +74,7 @@ public class SourceEvent {
     private String idempotencyHeader;
 
     /** Optional JSON Schema (as text) the Source payload must satisfy. */
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     private String payloadSchema;
 
     @Enumerated(EnumType.STRING)
