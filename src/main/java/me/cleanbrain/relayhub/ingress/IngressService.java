@@ -68,6 +68,15 @@ public class IngressService {
         Instant occurredAt = extractOccurredAt(context, sourceEvent.getOccurredAtPath());
         String idempotencyKey = extractIdempotencyKey(context, sourceEvent, request);
 
+        if (idempotencyKey != null) {
+            var existing = eventRepository.findBySourceEventIdAndIdempotencyKey(sourceEvent.getId(), idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("Duplicate idempotency key {} for Source Event {} — returning existing Event, no new deliveries",
+                        idempotencyKey, sourceEvent.getId());
+                return new IngressResult(existing.get(), 0, true);
+            }
+        }
+
         Event event = Event.builder()
                 .sourceId(sourceEvent.getSource().getId())
                 .sourceEventId(sourceEvent.getId())
@@ -86,7 +95,7 @@ public class IngressService {
             deliveryCount++;
         }
 
-        return new IngressResult(event, deliveryCount);
+        return new IngressResult(event, deliveryCount, false);
     }
 
     private JsonNode parsePayload(String rawBody) {
@@ -152,6 +161,7 @@ public class IngressService {
         return null;
     }
 
-    public record IngressResult(Event event, int deliveryCount) {
+    /** {@code deduplicated} is true when an idempotency key matched an existing Event — see specs/002-retry-dlq-replay/spec.md. */
+    public record IngressResult(Event event, int deliveryCount, boolean deduplicated) {
     }
 }

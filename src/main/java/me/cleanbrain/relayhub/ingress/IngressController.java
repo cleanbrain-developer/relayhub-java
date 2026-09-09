@@ -34,7 +34,8 @@ public class IngressController {
 
         IngressService.IngressResult result = ingressService.handle(path, method, body, request);
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(new IngressResponse(result.event().getId(), result.deliveryCount()));
+        HttpStatus status = result.deduplicated() ? HttpStatus.OK : HttpStatus.ACCEPTED;
+        return ResponseEntity.status(status)
+                .body(new IngressResponse(result.event().getId(), result.deliveryCount(), result.deduplicated()));
     }
 }

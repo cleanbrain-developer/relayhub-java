@@ -37,14 +37,13 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-1-vertical-slice
+  id: phase-2a-retry-dlq-replay
   status: active
   goal: >-
-    Harden and extend the first thin vertical slice (register -> ingress ->
-    JSONPath extraction -> canonical event -> mapping -> target HTTP delivery,
-    implemented and passing its acceptance test) before starting the
-    Reliability phase (Kafka, Transactional Outbox, Retry/Backoff, DLQ,
-    Replay, Idempotency enforcement).
+    Reliability phase, split incrementally (ADR-0003): Spec 002 (in-process
+    Retry/Backoff, DLQ, Operator Replay, idempotency dedup) is implemented and
+    passing its acceptance test. Spec 003 (Kafka-backed delivery,
+    Transactional Outbox) has not started.
 
 context:
   human_entrypoint: README.md

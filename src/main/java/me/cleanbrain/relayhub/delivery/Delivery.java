@@ -7,31 +7,27 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One delivery attempt of a Canonical Event to a Target via a Subscription, belonging to a
- * parent {@link Delivery}. See specs/002-retry-dlq-replay/spec.md.
+ * One (Event, Subscription) delivery unit. Owns the DeliveryAttempt history for that pairing and
+ * the overall recoverable state (DLQ = DEAD). See specs/002-retry-dlq-replay/spec.md.
  */
 @Entity
-@Table(name = "delivery_attempts")
+@Table(name = "deliveries")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class DeliveryAttempt {
+public class Delivery {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @Column(nullable = false)
-    private UUID deliveryId;
 
     @Column(nullable = false)
     private UUID eventId;
@@ -42,21 +38,16 @@ public class DeliveryAttempt {
     @Column(nullable = false)
     private UUID targetId;
 
-    @Column(nullable = false)
-    private int attemptNumber;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private DeliveryStatus status;
+    private DeliveryState state;
 
-    private Integer httpStatus;
-
-    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
-    private String responseBody;
-
-    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
-    private String errorMessage;
+    @Column(nullable = false)
+    private int attemptCount;
 
     @CreationTimestamp
-    private Instant attemptedAt;
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    private Instant updatedAt;
 }

@@ -6,7 +6,7 @@ This is the Java 21 / Spring Boot implementation. Other-language implementations
 
 ## Status
 
-Phase 1 — the first thin vertical slice (register -> ingress -> JSONPath extraction -> canonical event -> mapping -> target HTTP delivery) is implemented and passing its acceptance test. Retry/DLQ/Replay/Kafka are not built yet. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists and what's next.
+The Reliability phase is being built incrementally (see `docs/decisions/ADR-0003-incremental-reliability-phase.md`). Spec 001 (register -> ingress -> JSONPath extraction -> canonical event -> mapping -> target HTTP delivery) and Spec 002 (in-process Retry/Backoff, DLQ, Operator Replay, idempotency dedup) are both implemented and passing their acceptance tests. Kafka and the Transactional Outbox pattern (Spec 003) are not built yet. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists and what's next.
 
 ## Documentation map
 
@@ -18,7 +18,7 @@ Phase 1 — the first thin vertical slice (register -> ingress -> JSONPath extra
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
 | Engineering/agent principles | [`.ai/constitution/`](.ai/constitution/) |
-| First feature spec | [`specs/001-push-event-delivery/`](specs/001-push-event-delivery/) |
+| Feature specs | [`specs/001-push-event-delivery/`](specs/001-push-event-delivery/), [`specs/002-retry-dlq-replay/`](specs/002-retry-dlq-replay/) |
 
 ## Working with Claude Code
 

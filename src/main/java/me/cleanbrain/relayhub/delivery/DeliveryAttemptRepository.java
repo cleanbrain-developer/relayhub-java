@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface DeliveryAttemptRepository extends JpaRepository<DeliveryAttempt, UUID> {
 
     List<DeliveryAttempt> findByEventId(UUID eventId);
+
+    List<DeliveryAttempt> findByDeliveryIdOrderByAttemptNumberAsc(UUID deliveryId);
 }
