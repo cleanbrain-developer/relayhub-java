@@ -1,0 +1,62 @@
+schema_version: 1
+
+project:
+  name: RelayHub (Java)
+  repository: relayhub-java
+  abbreviation: RelayHub
+  type: service
+  lifecycle: design
+
+purpose:
+  summary: >-
+    Event-driven data integration platform that relays data-change events from
+    Source systems to Target systems without forcing either side to adopt a
+    RelayHub-specific payload contract.
+  problem: >-
+    Point-to-point integrations couple systems directly, force full
+    DELETE+INSERT or full UPSERT on small changes, silently drop failed
+    deliveries with no retry/alerting, duplicate integration logic per system
+    pair, and leave no reliable delivery history or replay mechanism when
+    manual database correction becomes necessary.
+
+supported_agents:
+  initial:
+    - claude-code
+  policy: agent-agnostic-core
+
+principles:
+  - repository-first-context
+  - agent-agnostic-core
+  - thin-agent-adapters
+  - explicit-architecture-decisions
+  - minimal-task-prompts
+  - evidence-before-change
+  - deterministic-quality-gates-when-implemented
+  - external-contract-flexibility-over-relayhub-envelope
+  - reliability-over-feature-count
+  - modular-monolith-before-distribution
+
+current_phase:
+  id: v1-foundation
+  status: active
+  goal: >-
+    Establish the self-describing repository foundation (product, architecture,
+    decisions, working state) before implementation, then deliver the first
+    thin vertical slice: register -> ingress -> JSONPath extraction ->
+    canonical event -> mapping -> target HTTP delivery.
+
+context:
+  human_entrypoint: README.md
+  agent_entrypoints:
+    claude_code: CLAUDE.md
+  constitution: .ai/constitution/
+  product: docs/product/
+  architecture: docs/architecture/
+  decisions: docs/decisions/
+  current_state: docs/status/current-state.md
+  specs: specs/
+
+delivery:
+  implementation_present: false
+  cli_present: false
+  automation_present: false
