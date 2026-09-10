@@ -5,10 +5,14 @@ spring:
     url: jdbc:postgresql://localhost:5432/relayhub
     username: relayhub
     password: relayhub
+  flyway:
+    enabled: true
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      # Flyway (src/main/resources/db/migration/) owns the schema now — see ADR-0004. Hibernate
+      # only validates entities against it; it never generates or alters DDL itself in this profile.
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true

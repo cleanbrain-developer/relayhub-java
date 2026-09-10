@@ -6,7 +6,7 @@ This is the Java 21 / Spring Boot implementation. Other-language implementations
 
 ## Status
 
-The Reliability phase (register -> ingress -> canonical event -> mapping -> Retry/Backoff/DLQ/Replay/Idempotency, delivered via a Kafka + Transactional Outbox pipeline) is implemented end to end — see `docs/decisions/ADR-0003-incremental-reliability-phase.md` for why it was built as three incremental specs (001/002/003) instead of one change. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists, what's still a known gap, and what's next.
+The Reliability phase (register -> ingress -> canonical event -> mapping -> Retry/Backoff/DLQ/Replay/Idempotency, delivered via a Kafka + Transactional Outbox pipeline) is implemented end to end — see `docs/decisions/ADR-0003-incremental-reliability-phase.md` for why it was built as three incremental specs (001/002/003) instead of one change. Flyway migrations and delivery-task-level idempotency (protecting against Kafka redelivery) followed as ADR-0004. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists, what's still a known gap, and what's next.
 
 ## Documentation map
 
@@ -33,4 +33,4 @@ docker compose up -d      # Postgres + Kafka
 
 Ingress is asynchronous: `POST /ingress/v1/...` returns as soon as the Event and its Outbox rows are durably stored, before any Target has been called. Poll `GET /api/deliveries?eventId=` to see delivery outcomes.
 
-`./gradlew test` covers both the fast path (in-memory H2 + `@EmbeddedKafka`, no Docker needed) and `PostgresKafkaIntegrationTest` (Testcontainers, real Postgres + Kafka — **requires Docker**), which runs the same combined scenario against real infrastructure and exercises the actual production `application.yml` settings, not the H2 test profile's.
+`./gradlew test` covers both the fast path (in-memory H2 + `@EmbeddedKafka`, no Docker needed) and `PostgresKafkaIntegrationTest` (Testcontainers, real Postgres + Kafka — **requires Docker**), which runs the same combined scenario against real infrastructure, applies `db/migration/V1__init_schema.sql` for real, and exercises the actual production `application.yml` settings (`ddl-auto: validate`), not the H2 test profile's.

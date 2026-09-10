@@ -15,9 +15,13 @@ import java.util.UUID;
 /**
  * One (Event, Subscription) delivery unit. Owns the DeliveryAttempt history for that pairing and
  * the overall recoverable state (DLQ = DEAD). See specs/002-retry-dlq-replay/spec.md.
+ *
+ * <p>The (eventId, subscriptionId) uniqueness is also enforced at the DB level so that a delivery
+ * task redelivered by Kafka (e.g. after a worker crash before offset commit) cannot create a
+ * second row for the same pairing — see DeliveryService#deliver and ADR-0004.
  */
 @Entity
-@Table(name = "deliveries")
+@Table(name = "deliveries", uniqueConstraints = @UniqueConstraint(name = "uk_deliveries_event_subscription", columnNames = {"event_id", "subscription_id"}))
 @Getter
 @Setter
 @NoArgsConstructor

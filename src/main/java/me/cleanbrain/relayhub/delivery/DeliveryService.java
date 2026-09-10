@@ -56,6 +56,31 @@ public class DeliveryService {
 
     @Transactional
     public Delivery deliver(Event event, Subscription subscription, JsonNode sourcePayload) {
+        // Idempotency at the delivery-task level: a Kafka-redelivered DeliveryTaskMessage (e.g.
+        // after DeliveryWorker crashes before its offset commits) must not create a second
+        // Delivery for the same (Event, Subscription) pair and re-run the whole retry loop. This
+        // is separate from Spec 002's ingress-level idempotency-key dedup, which only prevents a
+        // duplicate *Event* — it says nothing about a single Event's own delivery tasks being
+        // reprocessed. See specs/003-kafka-outbox/spec.md ("Deliberately out of scope") and ADR-0004.
+        //
+        // This SELECT-then-INSERT covers the common case (sequential redelivery after a worker
+        // restart) exactly. It does not defend against two truly concurrent transactions racing
+        // on the same pair (only possible during a brief consumer-group rebalance, since a single
+        // partition is otherwise processed by one consumer at a time): the DB's unique constraint
+        // on (event_id, subscription_id) still catches that, but deliberately as an uncaught
+        // DataIntegrityViolationException here, not a recovered one. Catching it and querying
+        // again in the same transaction was tried and rejected — Postgres marks a transaction
+        // unusable for further statements after a constraint violation, so that fallback query
+        // would itself fail. Letting it propagate out of this @KafkaListener-invoked method lets
+        // Spring Kafka's normal redelivery retry the message, and the retry's SELECT then finds
+        // the row the other transaction committed.
+        var existing = deliveryRepository.findByEventIdAndSubscriptionId(event.getId(), subscription.getId());
+        if (existing.isPresent()) {
+            log.info("Delivery already exists for event {} / subscription {} (state={}) — skipping duplicate delivery task",
+                    event.getId(), subscription.getId(), existing.get().getState());
+            return existing.get();
+        }
+
         // saveAndFlush (not save): forces the INSERT to execute now, in its own statement, so
         // @CreationTimestamp actually populates createdAt. Observed live against real Postgres:
         // deferring the flush to transaction commit let this INSERT and the later state-update

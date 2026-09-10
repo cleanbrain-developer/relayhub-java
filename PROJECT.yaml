@@ -37,14 +37,15 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-2b-kafka-outbox
+  id: phase-2c-migrations-and-dedup
   status: active
   goal: >-
-    Reliability phase complete, split incrementally (ADR-0003): Spec 002
-    (Retry/Backoff/DLQ/Replay/idempotency) and Spec 003 (Kafka-backed
-    delivery via Transactional Outbox) are both implemented and verified
-    against real Postgres/Kafka. Next: automated Postgres/Kafka test
-    coverage (Testcontainers) and real schema migrations.
+    Reliability phase (ADR-0003) complete and its two follow-up gaps
+    (ADR-0004) closed: Flyway migrations replaced ddl-auto: update, and
+    delivery-task-level idempotency protects against Kafka redelivery.
+    Verified via Testcontainers (real Postgres + Kafka) on every
+    ./gradlew test run. Next: cleanbrain-me-infra deployment decision
+    (not near-term).
 
 context:
   human_entrypoint: README.md
