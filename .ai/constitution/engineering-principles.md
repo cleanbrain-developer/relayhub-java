@@ -2,7 +2,7 @@
 
 This document defines engineering principles that should outlive a technology choice or an individual feature. Adopted from Agent Development Starter and reviewed for RelayHub; extended with principles specific to this project's design (see "RelayHub-specific principles" below).
 
-**Status: pending maintainer review** — see `docs/status/current-state.md` open decisions. These principles are drafted, not yet confirmed by the maintainer as ones the team will actually follow.
+**Status: accepted** (maintainer review, 2026-09-10). Confirmed as-is, without amendment, after being exercised in practice across Spec 001 and Spec 002 — e.g. ADR-0001/0002/0003 for explicit architecture, real H2 and manual Postgres verification (not just compilation) for verifiable outcomes, and the Spec 002 scope split for minimal coherent change.
 
 ## Evidence before change
 
