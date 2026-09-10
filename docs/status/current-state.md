@@ -85,3 +85,4 @@ The original design roadmap (Phases 1-3) is now fully built. What's left is main
 - Prometheus actually scrapes the app (`up{job="relayhub"}` = 1); Grafana's own API confirms the provisioned Prometheus datasource and "RelayHub" dashboard both auto-loaded.
 - A real ingress request's trace is visible in Zipkin (`http post /ingress/v1/**` span observed via `/api/v2/traces`).
 - `scripts/dlq-replay-demo.sh` and `scripts/load-check.sh` both run unattended against a live instance and exit 0 (`PASS`).
+- CI confirmed green on GitHub for this change too (run [34472249144](https://github.com/cleanbrain-developer/relayhub-java/actions/runs/34472249144), 2m54s, all steps passed) — the new Micrometer/tracing/Actuator dependencies and config didn't break the fast test suite.
