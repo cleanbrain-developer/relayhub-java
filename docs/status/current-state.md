@@ -1,10 +1,10 @@
 # Current State
 
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ## Current phase
 
-`phase-3-observability` — the original design's full roadmap is now built: Specs 001-003 (vertical slice, reliability, Kafka/Outbox), ADR-0004 (Flyway migrations, delivery-task dedup), CI, and Spec 004 (`specs/004-observability/`) — metrics, dashboards, tracing, and reproducible demo/load scripts. Every phase verified against real infrastructure (Postgres, Kafka, Prometheus, Grafana, Zipkin via `docker compose`), not just believed to work. Now extending Spec 004 with demo-profile seed data (done) and a continuous-traffic/random-failure simulator (`relayhub-demo-systems`, in progress) to give the future developer-site observability dashboard real, unattended activity to show.
+`phase-4-live` — the original design roadmap (Specs 001-003, ADR-0004, CI, Spec 004 observability) and the demo-observability extension (seed data, `relayhub-demo-systems`, Docker Compose integration) are all built and verified. **RelayHub is now deployed and live** at [relayhub-java.developer.cleanbrain.me](https://relayhub-java.developer.cleanbrain.me) (Kubernetes, `cleanbrain-me-infra`, namespace `cleanbrain-me-relayhub-java`) — confirmed end to end with real evidence, not just applied manifests: a real Let's Encrypt certificate, `/actuator/health` returning `UP` with `db` connected, and — the actual point of the whole demo-observability arc — `relayhub_delivery_terminal_total{state="dead"}` genuinely incrementing in production from `relayhub-demo-systems`' unattended traffic hitting its own flaky Target, with zero manual action. Remaining work is maintenance-shaped.
 
 ## Completed
 
@@ -34,24 +34,25 @@ Last updated: 2026-09-10
 
 - **`relayhub-demo-systems`** (2026-09-11, [github.com/cleanbrain-developer/relayhub-demo-systems](https://github.com/cleanbrain-developer/relayhub-demo-systems)): a new sibling repo, Node.js/TypeScript/Express, that plays both the flight-status Source and its two Targets. A `setInterval` scheduler ticks every 5s with no manual trigger, creating/advancing simulated flights and POSTing/PATCHing them into this repo's Ingress API. `/targets/airport-display` always succeeds; `/targets/travelapp-vendor` randomly returns 503 immediately or stalls ~6s then 504 (its own internal logic, not RelayHub's or a script's). Verified live end to end against a real running `demo`-profile instance: continuous ticks, both Targets receiving correctly-mapped requests, and — unattended — a real Delivery reaching `DEAD` (`relayhub_delivery_terminal_total{state="dead"}` incremented) purely from the simulator's own flakiness.
 - **Docker Compose integration** (2026-09-11): `relayhub-demo-systems` gained a multi-stage `Dockerfile`, and `docker-compose.yml` gained an opt-in `demo`-profile `demo-systems` service (`docker compose --profile demo up -d demo-systems`) with a build context assuming the two repos are checked out as siblings (`../../node/relayhub-demo-systems`). The app itself still runs on the host, so the container reaches it via `host.docker.internal`. Verified live: the containerized simulator built, started, reached the host app, and drove a real Delivery to `DEAD` from inside Docker — same behavior as running it outside Docker.
+- **Production deployment** (2026-09-11, `cleanbrain-me-infra`): namespace `cleanbrain-me-relayhub-java` with four workloads — `postgres` (StatefulSet+PVC), `kafka` (single-node KRaft, no PVC), `api` (this app), `demo-systems` (`relayhub-demo-systems`, internal-only). Two separate source repos each own one Deployment in this one namespace — a first for this infra repo — with per-repo-scoped RBAC (`ci-deployer-relayhub-java`, `ci-deployer-relayhub-demo-systems`). **No code change was needed** in this repo to make it deployable: Spring Boot's environment-variable relaxed binding already overrides `application.yml`'s hardcoded `localhost` defaults, so the Kubernetes `ConfigMap`/`Secret` do all the wiring purely via container env vars — confirmed by `docker run`-ing the built image with only env overrides against real Postgres/Kafka before ever writing a manifest. `relayhub-java.developer.cleanbrain.me` is the first hostname under a brand-new `developer.cleanbrain.me` DNS subdomain (per this repo's own ADR-0002 naming convention). Full manifests, CI build-and-push/deploy jobs, and bootstrap runbook live in `cleanbrain-me-infra`'s README "relayhub-java" section — that repo is the source of truth for infra details, not duplicated here.
+  - Two real production issues were hit and fixed during rollout (both documented in the infra repo's own manifest comments and commit history): (1) the shared Gateway's TLS listener was missed on first deploy (same class of mistake that repo's README already flagged for `kioti-crm-discount` — `HTTPRoute` healthy, DNS resolved, but `TRAEFIK DEFAULT CERT` served instead of a real one); (2) Kafka's `advertised.listeners` defaulted to `localhost:9092`, which only worked in local `docker-compose` by accident (the app ran on the host with the port published) — in-cluster this made every Outbox→Kafka publish fail silently forever. Fixing it required the *entire* KRaft bootstrap env var set together (not just `KAFKA_ADVERTISED_LISTENERS` alone, which crash-looped the broker with "missing `zookeeper.connect`") — see `cleanbrain-me-infra`'s `kubernetes/apps/relayhub-java/kafka/deployment.yaml` for the full set and why each one is there.
+  - Verified live with real evidence: `openssl s_client` shows a genuine Let's Encrypt certificate; `curl .../actuator/health` returns `UP` with `db` connected; and — the actual payoff of this whole demo-observability arc — `relayhub_delivery_terminal_total{state="dead"}` is genuinely incrementing in production, proving the full unattended loop (relayhub-demo-systems traffic → Ingress → Outbox → Kafka → DeliveryWorker → retry → real DLQ entry) works with zero manual action, exactly as designed.
 
 ## In progress
 
-- None right now for the demo-observability track — `relayhub-demo-systems` is built, containerized, and wired into `docker-compose.yml`.
+- None. See Next.
 
 ## Next
 
-The original design roadmap (Phases 1-3) is now fully built. What's left is maintenance-shaped, not new-phase-shaped, plus the demo-observability work above:
+The original design roadmap and the demo-observability extension are both fully built and now live in production. What's left is maintenance-shaped:
 
-1. Decide whether/when to add this service to `cleanbrain-me-infra` (namespace `cleanbrain-me-relayhub-java`, Gateway listener for `relayhub-java.developer.cleanbrain.me`) — not near-term (confirmed again 2026-09-10); V1 targets local Docker Compose only. Now means deploying Kafka, Prometheus, Grafana, and Zipkin too, not just the app and Postgres — worth reassessing which of the observability stack (if any) actually belongs in production versus staying local-dev-only when this decision is revisited. Eventually `relayhub-demo-systems` would deploy alongside it.
-2. Add `V2__...` migrations as real schema changes arise — `ddl-auto` will no longer silently apply them; each needs a deliberate SQL file and a `validate` check.
-3. CI currently only runs tests on push/PR (`.github/workflows/ci.yml`) — no build/publish/deploy job exists, deliberately, since there is no deployment target yet (item 1). Add one once item 1 is decided.
-4. `management.tracing.sampling.probability: 1.0` traces every request — fine at personal-project scale, would need dialing down before any real traffic volume (see `specs/004-observability/spec.md`).
+1. Add `V2__...` migrations as real schema changes arise — `ddl-auto` will no longer silently apply them; each needs a deliberate SQL file and a `validate` check.
+2. `management.tracing.sampling.probability` is `0` in production (no Zipkin there, see `cleanbrain-me-infra`'s `api/configmap.yaml`) but stays `1.0` for local dev — fine at personal-project scale either way; revisit only if real traffic volume ever changes that calculus (see `specs/004-observability/spec.md`).
+3. Consider whether `relayhub-demo-systems`' continuous traffic generation should be tuned (interval, failure rate) now that it's running unattended in production 24/7 rather than only during local verification sessions.
 
 ## Open decisions
 
 - Whether a `relayhub-node` (or other language) sibling repository will actually be built, and when.
-- Whether `application.yml`'s hardcoded local Postgres/Kafka addresses should move to environment variables before this goes anywhere beyond a personal dev machine.
 - `Subscription.retryPolicy` remains an unparsed free-text field; a fixed policy (3 attempts, 200ms/400ms backoff) applies to every Subscription regardless of what that field says (see ADR-0003).
 - Outbox row cleanup/archival is unaddressed (Spec 003 "Deliberately out of scope") — fine for a local MVP, revisit before anything long-lived.
 

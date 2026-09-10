@@ -37,14 +37,17 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-3-observability
+  id: phase-4-live
   status: active
   goal: >-
     The original design roadmap (vertical slice, reliability, Kafka/
-    Outbox, migrations/dedup, CI, observability) is fully built and
-    verified against real infrastructure end to end. Remaining work is
-    maintenance-shaped: the cleanbrain-me-infra deployment decision
-    (not near-term) and routine follow-ups as they arise.
+    Outbox, migrations/dedup, CI, observability) plus the demo-
+    observability extension (seed data, relayhub-demo-systems,
+    Docker Compose integration) are fully built and verified. RelayHub
+    is deployed and live at relayhub-java.developer.cleanbrain.me
+    (cleanbrain-me-infra), confirmed end to end including real DLQ
+    activity in production from relayhub-demo-systems' unattended
+    traffic. Remaining work is maintenance-shaped.
 
 context:
   human_entrypoint: README.md
