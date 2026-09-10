@@ -1,5 +1,6 @@
 package me.cleanbrain.relayhub.outbox;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.delivery.DeliveryTaskMessage;
 import org.slf4j.Logger;
@@ -25,6 +26,7 @@ public class OutboxPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, DeliveryTaskMessage> kafkaTemplate;
+    private final MeterRegistry meterRegistry;
 
     @Scheduled(fixedDelay = 200)
     @Transactional
@@ -38,10 +40,12 @@ public class OutboxPublisher {
                 outboxEvent.setStatus(OutboxStatus.PUBLISHED);
                 outboxEvent.setPublishedAt(Instant.now());
                 outboxEventRepository.save(outboxEvent);
+                meterRegistry.counter("relayhub.outbox.published").increment();
             } catch (Exception e) {
                 // Left PENDING — retried on the next poll (at-least-once). See spec.md
                 // "Deliberately out of scope" for the consumer-side duplicate-processing gap this implies.
                 log.warn("Failed to publish outbox event {}: {}", outboxEvent.getId(), e.getMessage());
+                meterRegistry.counter("relayhub.outbox.publish.failed").increment();
             }
         }
     }

@@ -2,6 +2,8 @@ package me.cleanbrain.relayhub.delivery;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.event.Event;
@@ -46,6 +48,7 @@ public class DeliveryService {
     private final SubscriptionRepository subscriptionRepository;
     private final EventRepository eventRepository;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     // Forces HTTP/1.1: the JDK HttpClient's default HTTP/2 upgrade attempt causes
     // "EOF reached while reading" against plain HTTP/1.1 Target servers (observed against
@@ -98,6 +101,7 @@ public class DeliveryService {
             boolean success = attemptOnce(delivery, subscription, sourcePayload, attemptNumber);
             if (success) {
                 delivery.setState(DeliveryState.SUCCEEDED);
+                meterRegistry.counter("relayhub.delivery.terminal", "state", "succeeded").increment();
                 return deliveryRepository.save(delivery);
             }
             if (attemptNumber < MAX_ATTEMPTS) {
@@ -106,6 +110,7 @@ public class DeliveryService {
         }
 
         delivery.setState(DeliveryState.DEAD);
+        meterRegistry.counter("relayhub.delivery.terminal", "state", "dead").increment();
         return deliveryRepository.save(delivery);
     }
 
@@ -127,6 +132,7 @@ public class DeliveryService {
 
         boolean success = attemptOnce(delivery, subscription, sourcePayload, delivery.getAttemptCount() + 1);
         delivery.setState(success ? DeliveryState.SUCCEEDED : DeliveryState.DEAD);
+        meterRegistry.counter("relayhub.delivery.replay", "outcome", success ? "succeeded" : "dead").increment();
         return deliveryRepository.save(delivery);
     }
 
@@ -142,6 +148,7 @@ public class DeliveryService {
                 .attemptNumber(attemptNumber);
 
         boolean success;
+        Timer.Sample sample = Timer.start(meterRegistry);
         try {
             String responseBody = restClient.method(subscription.getTargetMethod().toSpring())
                     .uri(url)
@@ -167,6 +174,8 @@ public class DeliveryService {
                     .errorMessage(e.getMessage());
             success = false;
         }
+        sample.stop(meterRegistry.timer("relayhub.delivery.attempt.duration", "status", success ? "success" : "failed"));
+        meterRegistry.counter("relayhub.delivery.attempts", "status", success ? "success" : "failed").increment();
 
         deliveryAttemptRepository.save(attempt.build());
         delivery.setAttemptCount(attemptNumber);

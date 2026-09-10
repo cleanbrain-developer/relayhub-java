@@ -15,3 +15,9 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
   kafka:
     bootstrap-servers: ${spring.embedded.kafka.brokers}
+
+# No Zipkin container in tests — sampling off keeps test logs free of background export errors.
+management:
+  tracing:
+    sampling:
+      probability: 0.0

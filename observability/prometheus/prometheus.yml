@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: relayhub
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # host.docker.internal: the app runs on the host, not in this Compose network (see
+      # docker-compose.yml) — Docker Desktop resolves this to the host machine. Native Linux
+      # Docker (no Docker Desktop) would need --add-host or a different approach.
+      - targets: ["host.docker.internal:8080"]

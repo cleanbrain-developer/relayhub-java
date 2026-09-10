@@ -37,15 +37,14 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-2c-migrations-and-dedup
+  id: phase-3-observability
   status: active
   goal: >-
-    Reliability phase (ADR-0003) complete and its two follow-up gaps
-    (ADR-0004) closed: Flyway migrations replaced ddl-auto: update, and
-    delivery-task-level idempotency protects against Kafka redelivery.
-    Verified via Testcontainers (real Postgres + Kafka) on every
-    ./gradlew test run. Next: cleanbrain-me-infra deployment decision
-    (not near-term).
+    The original design roadmap (vertical slice, reliability, Kafka/
+    Outbox, migrations/dedup, CI, observability) is fully built and
+    verified against real infrastructure end to end. Remaining work is
+    maintenance-shaped: the cleanbrain-me-infra deployment decision
+    (not near-term) and routine follow-ups as they arise.
 
 context:
   human_entrypoint: README.md

@@ -1,0 +1,5 @@
+# Shell scripts must keep LF line endings regardless of the checkout platform's git config —
+# CRLF breaks them when run via `bash script.sh` (heredoc-embedded content, in particular) and
+# CI runs on Linux (ubuntu-latest, see .github/workflows/ci.yml).
+*.sh text eol=lf
+gradlew text eol=lf

@@ -24,6 +24,7 @@ import me.cleanbrain.relayhub.outbox.OutboxEventRepository;
 import me.cleanbrain.relayhub.outbox.OutboxStatus;
 import me.cleanbrain.relayhub.sourceevent.SourceEvent;
 import me.cleanbrain.relayhub.sourceevent.SourceEventRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import me.cleanbrain.relayhub.subscription.Subscription;
 import me.cleanbrain.relayhub.subscription.SubscriptionService;
 import org.slf4j.Logger;
@@ -58,6 +59,7 @@ public class IngressService {
     private final SubscriptionService subscriptionService;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     @Transactional
     public IngressResult handle(String ingressPath, HttpMethod method, String rawBody, HttpServletRequest request) {
@@ -77,6 +79,7 @@ public class IngressService {
             if (existing.isPresent()) {
                 log.info("Duplicate idempotency key {} for Source Event {} — returning existing Event, no new deliveries",
                         idempotencyKey, sourceEvent.getId());
+                meterRegistry.counter("relayhub.ingress.events", "outcome", "deduplicated").increment();
                 return new IngressResult(existing.get(), 0, true);
             }
         }
@@ -103,6 +106,7 @@ public class IngressService {
             queuedCount++;
         }
 
+        meterRegistry.counter("relayhub.ingress.events", "outcome", "created").increment();
         return new IngressResult(event, queuedCount, false);
     }
 

@@ -33,6 +33,23 @@ spring:
         spring.json.trusted.packages: me.cleanbrain.relayhub.delivery
         spring.json.value.default.type: me.cleanbrain.relayhub.delivery.DeliveryTaskMessage
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      # 1.0 = trace every request. Fine for a local/personal-scale service; would need dialing
+      # down before any real traffic volume — see specs/004-observability/spec.md.
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
 server:
   port: 8080
 
