@@ -6,7 +6,7 @@ This is the Java 21 / Spring Boot implementation. Other-language implementations
 
 ## Status
 
-The Reliability phase is being built incrementally (see `docs/decisions/ADR-0003-incremental-reliability-phase.md`). Spec 001 (register -> ingress -> JSONPath extraction -> canonical event -> mapping -> target HTTP delivery) and Spec 002 (in-process Retry/Backoff, DLQ, Operator Replay, idempotency dedup) are both implemented and passing their acceptance tests. Kafka and the Transactional Outbox pattern (Spec 003) are not built yet. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists and what's next.
+The Reliability phase (register -> ingress -> canonical event -> mapping -> Retry/Backoff/DLQ/Replay/Idempotency, delivered via a Kafka + Transactional Outbox pipeline) is implemented end to end — see `docs/decisions/ADR-0003-incremental-reliability-phase.md` for why it was built as three incremental specs (001/002/003) instead of one change. See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists, what's still a known gap, and what's next.
 
 ## Documentation map
 
@@ -18,7 +18,7 @@ The Reliability phase is being built incrementally (see `docs/decisions/ADR-0003
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
 | Engineering/agent principles | [`.ai/constitution/`](.ai/constitution/) |
-| Feature specs | [`specs/001-push-event-delivery/`](specs/001-push-event-delivery/), [`specs/002-retry-dlq-replay/`](specs/002-retry-dlq-replay/) |
+| Feature specs | [`specs/001-push-event-delivery/`](specs/001-push-event-delivery/), [`specs/002-retry-dlq-replay/`](specs/002-retry-dlq-replay/), [`specs/003-kafka-outbox/`](specs/003-kafka-outbox/) |
 
 ## Working with Claude Code
 
@@ -27,8 +27,10 @@ Start from [`CLAUDE.md`](CLAUDE.md) — it routes to the documents above in the 
 ## Running locally
 
 ```bash
-docker compose up -d      # Postgres only for now
+docker compose up -d      # Postgres + Kafka
 ./gradlew bootRun
 ```
 
-`./gradlew test` runs against an in-memory H2 database and does not require Docker. Both Spec 001 and Spec 002 have additionally been manually verified against real Postgres, but neither is yet covered by an automated Postgres test — see `docs/status/current-state.md` ("Known constraints").
+Ingress is asynchronous: `POST /ingress/v1/...` returns as soon as the Event and its Outbox rows are durably stored, before any Target has been called. Poll `GET /api/deliveries?eventId=` to see delivery outcomes.
+
+`./gradlew test` runs against an in-memory H2 database and an embedded Kafka broker (`@EmbeddedKafka`) and does not require Docker. All three specs have additionally been manually verified against real Postgres + Kafka, but neither is yet covered by an automated Testcontainers-based test — see `docs/status/current-state.md` ("Known constraints").

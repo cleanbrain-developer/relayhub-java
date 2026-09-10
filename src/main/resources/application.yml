@@ -15,6 +15,19 @@ spring:
         globally_quoted_identifiers: true
   jackson:
     default-property-inclusion: non_null
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: relayhub-delivery-worker
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: me.cleanbrain.relayhub.delivery
+        spring.json.value.default.type: me.cleanbrain.relayhub.delivery.DeliveryTaskMessage
 
 server:
   port: 8080

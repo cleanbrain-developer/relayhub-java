@@ -15,5 +15,12 @@ services:
       timeout: 5s
       retries: 10
 
+  # Single-node KRaft broker (no Zookeeper). The apache/kafka image ships a default
+  # single-node config that just works for local dev when run with no extra env vars.
+  kafka:
+    image: apache/kafka:3.8.0
+    ports:
+      - "9092:9092"
+
 volumes:
   relayhub-postgres-data:

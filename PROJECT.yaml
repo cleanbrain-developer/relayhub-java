@@ -37,13 +37,14 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-2a-retry-dlq-replay
+  id: phase-2b-kafka-outbox
   status: active
   goal: >-
-    Reliability phase, split incrementally (ADR-0003): Spec 002 (in-process
-    Retry/Backoff, DLQ, Operator Replay, idempotency dedup) is implemented and
-    passing its acceptance test. Spec 003 (Kafka-backed delivery,
-    Transactional Outbox) has not started.
+    Reliability phase complete, split incrementally (ADR-0003): Spec 002
+    (Retry/Backoff/DLQ/Replay/idempotency) and Spec 003 (Kafka-backed
+    delivery via Transactional Outbox) are both implemented and verified
+    against real Postgres/Kafka. Next: automated Postgres/Kafka test
+    coverage (Testcontainers) and real schema migrations.
 
 context:
   human_entrypoint: README.md

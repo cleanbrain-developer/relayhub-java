@@ -17,9 +17,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.HttpVerb;
 import me.cleanbrain.relayhub.common.NotFoundException;
-import me.cleanbrain.relayhub.delivery.DeliveryService;
 import me.cleanbrain.relayhub.event.Event;
 import me.cleanbrain.relayhub.event.EventRepository;
+import me.cleanbrain.relayhub.outbox.OutboxEvent;
+import me.cleanbrain.relayhub.outbox.OutboxEventRepository;
+import me.cleanbrain.relayhub.outbox.OutboxStatus;
 import me.cleanbrain.relayhub.sourceevent.SourceEvent;
 import me.cleanbrain.relayhub.sourceevent.SourceEventRepository;
 import me.cleanbrain.relayhub.subscription.Subscription;
@@ -34,9 +36,11 @@ import java.time.Instant;
 import java.util.Set;
 
 /**
- * Orchestrates the Phase 1 vertical slice: identify the Source Event from the Ingress URL,
- * validate and extract the Source payload, persist a Canonical Event, then deliver it to
- * every active Subscription. See docs/architecture/system-design.md ("Core data flow").
+ * Orchestrates the vertical slice: identify the Source Event from the Ingress URL, validate and
+ * extract the Source payload, persist a Canonical Event, then queue one Outbox row per active
+ * Subscription in the same transaction (the transactional-outbox guarantee — see
+ * specs/003-kafka-outbox/spec.md). {@link me.cleanbrain.relayhub.outbox.OutboxPublisher} and
+ * {@link me.cleanbrain.relayhub.delivery.DeliveryWorker} take it from there asynchronously.
  */
 @Service
 @RequiredArgsConstructor
@@ -52,7 +56,7 @@ public class IngressService {
     private final SourceEventRepository sourceEventRepository;
     private final EventRepository eventRepository;
     private final SubscriptionService subscriptionService;
-    private final DeliveryService deliveryService;
+    private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -89,13 +93,17 @@ public class IngressService {
                 .build();
         event = eventRepository.save(event);
 
-        int deliveryCount = 0;
+        int queuedCount = 0;
         for (Subscription subscription : subscriptionService.findActiveForSourceEvent(sourceEvent.getId())) {
-            deliveryService.deliver(event, subscription, payload);
-            deliveryCount++;
+            outboxEventRepository.save(OutboxEvent.builder()
+                    .eventId(event.getId())
+                    .subscriptionId(subscription.getId())
+                    .status(OutboxStatus.PENDING)
+                    .build());
+            queuedCount++;
         }
 
-        return new IngressResult(event, deliveryCount, false);
+        return new IngressResult(event, queuedCount, false);
     }
 
     private JsonNode parsePayload(String rawBody) {
@@ -161,7 +169,11 @@ public class IngressService {
         return null;
     }
 
-    /** {@code deduplicated} is true when an idempotency key matched an existing Event — see specs/002-retry-dlq-replay/spec.md. */
+    /**
+     * {@code deliveryCount} is now the number of Outbox rows queued for asynchronous delivery,
+     * not deliveries completed — see specs/003-kafka-outbox/spec.md. {@code deduplicated} is true
+     * when an idempotency key matched an existing Event — see specs/002-retry-dlq-replay/spec.md.
+     */
     public record IngressResult(Event event, int deliveryCount, boolean deduplicated) {
     }
 }

@@ -8,3 +8,5 @@ spring:
     hibernate:
       ddl-auto: create-drop
     database-platform: org.hibernate.dialect.H2Dialect
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers}

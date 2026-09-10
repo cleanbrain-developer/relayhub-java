@@ -15,20 +15,27 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
- * Reproduces the Spec 002 acceptance scenario (specs/002-retry-dlq-replay/spec.md): Target B
- * fails every attempt and lands in DEAD (DLQ) after retry/backoff, an Operator replay recovers
- * it, and a duplicate ingress request (same idempotency key) does not create a second Event or
- * new Deliveries.
+ * Reproduces the Spec 002/003 acceptance scenario (specs/002-retry-dlq-replay/spec.md,
+ * specs/003-kafka-outbox/spec.md): Target B fails every attempt and lands in DEAD (DLQ) after
+ * retry/backoff — now driven asynchronously via Outbox -> Kafka -> DeliveryWorker — an Operator
+ * replay (still synchronous) recovers it, and a duplicate ingress request (same idempotency key)
+ * does not create a second Event or new Deliveries.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@EmbeddedKafka(partitions = 1, topics = "relayhub.delivery-tasks")
 @ActiveProfiles("test")
 class DlqReplayIdempotencyTest {
 
@@ -104,23 +111,29 @@ class DlqReplayIdempotencyTest {
         assertThat(ingressBody.get("deliveryCount").asInt()).isEqualTo(2);
         assertThat(ingressBody.get("deduplicated").asBoolean()).isFalse();
 
-        JsonNode deliveries = objectMapper.readTree(getBody(baseUrl + "/api/deliveries?eventId=" + eventId));
-        assertThat(deliveries).hasSize(2);
+        // Delivery is now asynchronous (Outbox -> Kafka -> DeliveryWorker) — poll until both
+        // Deliveries reach a terminal state instead of asserting immediately. See
+        // specs/003-kafka-outbox/spec.md.
+        String targetAId = objectMapper.readTree(getBody(baseUrl + "/api/targets/spec002-target-a")).get("id").asText();
+        AtomicReference<String> deliveryIdARef = new AtomicReference<>();
+        AtomicReference<String> deliveryIdBRef = new AtomicReference<>();
 
-        String deliveryIdA = null;
-        String deliveryIdB = null;
-        for (JsonNode delivery : deliveries) {
-            String targetId = delivery.get("targetId").asText();
-            JsonNode target = objectMapper.readTree(getBody(baseUrl + "/api/targets/spec002-target-a"));
-            if (target.get("id").asText().equals(targetId)) {
-                deliveryIdA = delivery.get("id").asText();
-                assertThat(delivery.get("state").asText()).isEqualTo("SUCCEEDED");
-            } else {
-                deliveryIdB = delivery.get("id").asText();
-                assertThat(delivery.get("state").asText()).isEqualTo("DEAD");
-                assertThat(delivery.get("attemptCount").asInt()).isEqualTo(3);
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            JsonNode deliveries = objectMapper.readTree(getBody(baseUrl + "/api/deliveries?eventId=" + eventId));
+            assertThat(deliveries).hasSize(2);
+            for (JsonNode delivery : deliveries) {
+                if (targetAId.equals(delivery.get("targetId").asText())) {
+                    deliveryIdARef.set(delivery.get("id").asText());
+                    assertThat(delivery.get("state").asText()).isEqualTo("SUCCEEDED");
+                } else {
+                    deliveryIdBRef.set(delivery.get("id").asText());
+                    assertThat(delivery.get("state").asText()).isEqualTo("DEAD");
+                    assertThat(delivery.get("attemptCount").asInt()).isEqualTo(3);
+                }
             }
-        }
+        });
+        String deliveryIdA = deliveryIdARef.get();
+        String deliveryIdB = deliveryIdBRef.get();
         assertThat(deliveryIdA).isNotNull();
         assertThat(deliveryIdB).isNotNull();
 

@@ -94,7 +94,7 @@ Example — Source payload `{"customerNo":"C10001","name":"ABC Dealer"}` mapped 
 | Idempotency | From a configured HTTP header or JSONPath; absent config means every request is treated as a new event; exactly-once across the distributed pipeline is never claimed |
 | History | Both Event and Delivery Attempt are stored and queryable |
 
-### Target reliability structure (introduced in the Reliability phase, not Phase 1)
+### Target reliability structure (implemented — Specs 002/003)
 
 ```text
 Ingress Transaction
@@ -106,7 +106,7 @@ Ingress Transaction
     -> Target API
 ```
 
-Transactional Outbox avoids the gap where a DB commit succeeds but the asynchronous event is lost. Phase 1 does not implement this full pipeline — it builds the thin vertical slice first (see `docs/status/current-state.md`), then adds Kafka/Outbox/Retry/DLQ/Replay/Idempotency in the Reliability phase.
+Transactional Outbox avoids the gap where a DB commit succeeds but the asynchronous event is lost. Built incrementally rather than all at once, per `docs/decisions/ADR-0003-incremental-reliability-phase.md`: Spec 001 shipped the thin vertical slice with synchronous delivery; Spec 002 added Retry/Backoff/DLQ/Replay/Idempotency (still synchronous); Spec 003 replaced synchronous delivery with this Outbox/Kafka pipeline, reusing Spec 002's `Delivery`/retry/DLQ logic unchanged — see `specs/002-retry-dlq-replay/` and `specs/003-kafka-outbox/`.
 
 ## Recommended domain modules (Modular Monolith)
 

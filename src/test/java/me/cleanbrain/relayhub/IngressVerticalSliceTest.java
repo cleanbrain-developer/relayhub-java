@@ -13,7 +13,10 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.time.Duration;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -22,16 +25,18 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
- * Reproduces the single-Target slice of the Spec 001 acceptance scenario
- * (docs/product/overview.md "V1 experience", specs/001-push-event-delivery/spec.md):
- * register Source/Source Event/Target/Subscription, POST a Source payload to the
- * generated Ingress URL, and confirm RelayHub extracts, maps, and delivers it.
- * Retry/DLQ/Replay for a second, failing Target is deferred to a later spec/test —
- * see docs/product/goals.md ("Long-term direction", Reliability phase).
+ * Reproduces the single-Target slice of the Spec 001/003 acceptance scenario
+ * (docs/product/overview.md "V1 experience", specs/001-push-event-delivery/spec.md,
+ * specs/003-kafka-outbox/spec.md): register Source/Source Event/Target/Subscription, POST a
+ * Source payload to the generated Ingress URL, and confirm RelayHub extracts, maps, and (now
+ * asynchronously, via the Outbox -> Kafka -> DeliveryWorker pipeline) delivers it. Retry/DLQ/
+ * Replay for a second, failing Target is covered by DlqReplayIdempotencyTest.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@EmbeddedKafka(partitions = 1, topics = "relayhub.delivery-tasks")
 @ActiveProfiles("test")
 class IngressVerticalSliceTest {
 
@@ -99,10 +104,13 @@ class IngressVerticalSliceTest {
         assertThat(ingressResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         assertThat(ingressResponse.getBody()).contains("\"deliveryCount\":1");
 
-        wireMockServer.verify(postRequestedFor(urlEqualTo("/webhook"))
-                .withRequestBody(matchingJsonPath("$.dealerId", equalTo("C10001")))
-                .withRequestBody(matchingJsonPath("$.dealerName", equalTo("ABC Dealer")))
-                .withRequestBody(matchingJsonPath("$.active", equalTo("true"))));
+        // Delivery is now asynchronous (Outbox -> Kafka -> DeliveryWorker) — poll instead of
+        // asserting immediately. See specs/003-kafka-outbox/spec.md.
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                wireMockServer.verify(postRequestedFor(urlEqualTo("/webhook"))
+                        .withRequestBody(matchingJsonPath("$.dealerId", equalTo("C10001")))
+                        .withRequestBody(matchingJsonPath("$.dealerName", equalTo("ABC Dealer")))
+                        .withRequestBody(matchingJsonPath("$.active", equalTo("true")))));
     }
 
     private ResponseEntity<String> postJson(String url, String body) {

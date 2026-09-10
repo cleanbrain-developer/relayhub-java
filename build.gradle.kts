@@ -21,6 +21,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.kafka:spring-kafka")
 
     implementation("com.jayway.jsonpath:json-path:2.9.0")
     implementation("com.networknt:json-schema-validator:1.5.1")
@@ -31,8 +32,10 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("com.h2database:h2")
     testImplementation("org.wiremock:wiremock-standalone:3.9.2")
+    testImplementation("org.awaitility:awaitility:4.2.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
