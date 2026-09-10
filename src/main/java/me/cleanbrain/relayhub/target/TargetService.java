@@ -4,8 +4,11 @@ import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
+import me.cleanbrain.relayhub.target.dto.TargetUpdateRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -32,5 +35,26 @@ public class TargetService {
     public Target getByKey(String key) {
         return targetRepository.findByKey(key)
                 .orElseThrow(() -> new NotFoundException("Target not found: " + key));
+    }
+
+    public List<Target> findAll() {
+        return targetRepository.findAll();
+    }
+
+    @Transactional
+    public Target update(String key, TargetUpdateRequest request) {
+        Target target = getByKey(key);
+        target.setName(request.name());
+        target.setDescription(request.description());
+        target.setBaseUrl(request.baseUrl());
+        target.setAuthenticationConfig(request.authenticationConfig());
+        return target;
+    }
+
+    /** Soft delete: flips status to INACTIVE. Row stays — Delivery/Subscription history references it. */
+    @Transactional
+    public void deactivate(String key) {
+        Target target = getByKey(key);
+        target.setStatus(Status.INACTIVE);
     }
 }

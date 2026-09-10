@@ -10,8 +10,12 @@ public record SubscriptionResponse(
         UUID id,
         String sourceEventKey,
         String targetKey,
+        String name,
+        String description,
         HttpVerb targetMethod,
         String targetPath,
+        String targetPayloadTemplate,
+        String retryPolicy,
         Status status
 ) {
     public static SubscriptionResponse from(Subscription subscription) {
@@ -19,8 +23,12 @@ public record SubscriptionResponse(
                 subscription.getId(),
                 subscription.getSourceEvent().getKey(),
                 subscription.getTarget().getKey(),
+                subscription.getName(),
+                subscription.getDescription(),
                 subscription.getTargetMethod(),
                 subscription.getTargetPath(),
+                subscription.getTargetPayloadTemplate(),
+                subscription.getRetryPolicy(),
                 subscription.getStatus()
         );
     }

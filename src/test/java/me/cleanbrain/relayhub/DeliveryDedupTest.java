@@ -148,11 +148,14 @@ class DeliveryDedupTest {
         return UUID.fromString(objectMapper.readTree(response.getBody()).get("eventId").asText());
     }
 
+    // See IngressVerticalSliceTest's identical helper for why /api/** gets credentials and
+    // /ingress/v1/** deliberately doesn't.
     private ResponseEntity<String> postJson(String path, String body) {
         String url = "http://localhost:" + port + path;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
+        TestRestTemplate client = path.contains("/api/") ? restTemplate.withBasicAuth("admin", "admin") : restTemplate;
+        ResponseEntity<String> response = client.postForEntity(url, new HttpEntity<>(body, headers), String.class);
         assertThat(response.getStatusCode().is2xxSuccessful())
                 .as("POST %s failed: %s", url, response.getBody())
                 .isTrue();

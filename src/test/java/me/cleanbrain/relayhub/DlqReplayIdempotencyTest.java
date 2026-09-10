@@ -145,7 +145,8 @@ class DlqReplayIdempotencyTest {
 
         // Target B recovers; replay should now succeed.
         wireMockServer.stubFor(post(urlEqualTo("/webhook-b")).willReturn(aResponse().withStatus(200).withBody("ok")));
-        ResponseEntity<String> replayResponse = restTemplate.postForEntity(baseUrl + "/api/deliveries/" + deliveryIdB + "/replay", null, String.class);
+        ResponseEntity<String> replayResponse = restTemplate.withBasicAuth("admin", "admin")
+                .postForEntity(baseUrl + "/api/deliveries/" + deliveryIdB + "/replay", null, String.class);
         assertThat(replayResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode replayed = objectMapper.readTree(replayResponse.getBody());
         assertThat(replayed.get("state").asText()).isEqualTo("SUCCEEDED");
@@ -165,10 +166,13 @@ class DlqReplayIdempotencyTest {
         assertThat(deliveriesAfterDuplicate).hasSize(2);
     }
 
+    // See IngressVerticalSliceTest's identical helper for why /api/** gets credentials and
+    // /ingress/v1/** deliberately doesn't.
     private ResponseEntity<String> postJson(String url, String body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
+        TestRestTemplate client = url.contains("/api/") ? restTemplate.withBasicAuth("admin", "admin") : restTemplate;
+        ResponseEntity<String> response = client.postForEntity(url, new HttpEntity<>(body, headers), String.class);
         assertThat(response.getStatusCode().is2xxSuccessful())
                 .as("POST %s failed: %s", url, response.getBody())
                 .isTrue();

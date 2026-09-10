@@ -50,6 +50,15 @@ management:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
 
+relayhub:
+  # Single fixed admin account for the write side of the admin console (see
+  # specs/005-admin-console/spec.md and security/SecurityConfig.java). These defaults are for
+  # local dev only — production overrides both via env vars (SPRING relaxed binding, see
+  # cleanbrain-me-infra's api-secret) and must not use these insecure values.
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:admin}
+
 server:
   port: 8080
 

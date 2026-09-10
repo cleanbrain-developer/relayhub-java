@@ -4,8 +4,11 @@ import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.source.dto.SourceCreateRequest;
+import me.cleanbrain.relayhub.source.dto.SourceUpdateRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -31,5 +34,25 @@ public class SourceService {
     public Source getByKey(String key) {
         return sourceRepository.findByKey(key)
                 .orElseThrow(() -> new NotFoundException("Source not found: " + key));
+    }
+
+    public List<Source> findAll() {
+        return sourceRepository.findAll();
+    }
+
+    @Transactional
+    public Source update(String key, SourceUpdateRequest request) {
+        Source source = getByKey(key);
+        source.setName(request.name());
+        source.setDescription(request.description());
+        source.setAuthenticationConfig(request.authenticationConfig());
+        return source;
+    }
+
+    /** Soft delete: flips status to INACTIVE. Row stays — Delivery/Event history references it. */
+    @Transactional
+    public void deactivate(String key) {
+        Source source = getByKey(key);
+        source.setStatus(Status.INACTIVE);
     }
 }

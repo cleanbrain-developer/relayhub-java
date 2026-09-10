@@ -113,10 +113,16 @@ class IngressVerticalSliceTest {
                         .withRequestBody(matchingJsonPath("$.active", equalTo("true")))));
     }
 
+    // /api/** is protected by Spring Security (see security/SecurityConfig.java) with the
+    // admin/admin default from application.yml's relayhub.admin.* (unset in application-test.yml,
+    // so that default applies here too); /ingress/v1/** stays public, so registration calls need
+    // credentials but ingress calls deliberately don't — proving the latter still works
+    // unauthenticated is itself a useful regression check.
     private ResponseEntity<String> postJson(String url, String body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
+        TestRestTemplate client = url.contains("/api/") ? restTemplate.withBasicAuth("admin", "admin") : restTemplate;
+        ResponseEntity<String> response = client.postForEntity(url, new HttpEntity<>(body, headers), String.class);
         assertThat(response.getStatusCode().is2xxSuccessful())
                 .as("POST %s failed: %s", url, response.getBody())
                 .isTrue();

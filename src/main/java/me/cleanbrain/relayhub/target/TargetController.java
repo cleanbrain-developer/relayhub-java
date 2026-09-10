@@ -4,9 +4,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
 import me.cleanbrain.relayhub.target.dto.TargetResponse;
+import me.cleanbrain.relayhub.target.dto.TargetUpdateRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/targets")
@@ -21,8 +24,24 @@ public class TargetController {
         return ResponseEntity.status(HttpStatus.CREATED).body(TargetResponse.from(created));
     }
 
+    @GetMapping
+    public List<TargetResponse> list() {
+        return targetService.findAll().stream().map(TargetResponse::from).toList();
+    }
+
     @GetMapping("/{key}")
     public TargetResponse getByKey(@PathVariable String key) {
         return TargetResponse.from(targetService.getByKey(key));
+    }
+
+    @PutMapping("/{key}")
+    public TargetResponse update(@PathVariable String key, @Valid @RequestBody TargetUpdateRequest request) {
+        return TargetResponse.from(targetService.update(key, request));
+    }
+
+    @DeleteMapping("/{key}")
+    public ResponseEntity<Void> deactivate(@PathVariable String key) {
+        targetService.deactivate(key);
+        return ResponseEntity.noContent().build();
     }
 }
