@@ -51,5 +51,24 @@ services:
     ports:
       - "9411:9411"
 
+  # Simulated Source/Target systems for the demo-profile scenario (see DemoDataSeeder) —
+  # continuously generates flight-status events into the app's Ingress API and serves the two
+  # Targets it seeds. Assumes relayhub-demo-systems is checked out as a sibling repo under the
+  # same vscode/ root (../../node/relayhub-demo-systems); override `build.context` if that's not
+  # the case on your machine. Opt-in via the "demo" Compose profile so it doesn't start on a plain
+  # `docker compose up -d` — run `docker compose --profile demo up -d` alongside the app's own
+  # `--spring.profiles.active=demo`. The app itself runs on the host (not in Compose, see the
+  # Prometheus note above), so this container reaches it via host.docker.internal.
+  demo-systems:
+    build:
+      context: ../../node/relayhub-demo-systems
+    profiles: ["demo"]
+    ports:
+      - "9500:9500"
+    environment:
+      RELAYHUB_BASE_URL: http://host.docker.internal:8080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   relayhub-postgres-data:
