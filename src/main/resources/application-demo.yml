@@ -1,0 +1,11 @@
+# Activates DemoDataSeeder (me.cleanbrain.relayhub.demo.DemoDataSeeder) on startup — idempotently
+# registers a fixed set of demo Sources/Targets/Subscriptions for a developer-facing observability
+# dashboard. Off by default; enable with SPRING_PROFILES_ACTIVE=demo (in addition to any other
+# active profiles, e.g. "demo" alone for local dev against docker-compose's Postgres/Kafka).
+#
+# relayhub-demo-systems (https://github.com/cleanbrain-developer/relayhub-demo-systems) is the
+# separate simulator service these seeded Targets/Subscriptions point at — it generates the actual
+# traffic and random-failure behavior; RelayHub itself does neither.
+relayhub:
+  demo:
+    simulator-base-url: http://localhost:9500
