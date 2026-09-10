@@ -9,4 +9,4 @@
 - [x] Integration test: Target B fails 3x -> `DEAD`, replay -> `SUCCEEDED`.
 - [x] Integration test: duplicate idempotency key does not create a second Event/Delivery.
 
-All verified by `DlqReplayIdempotencyTest` (H2-backed, `./gradlew test`), not just compiled. Not yet re-verified against real Postgres — see `docs/status/current-state.md`.
+All verified by `DlqReplayIdempotencyTest` (H2-backed, `./gradlew test`) and manually against real Postgres (2026-09-10, including a fix for a Postgres-only `Delivery.createdAt` flush-timing bug) — see `docs/status/current-state.md`.

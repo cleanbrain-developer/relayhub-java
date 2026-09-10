@@ -56,7 +56,12 @@ public class DeliveryService {
 
     @Transactional
     public Delivery deliver(Event event, Subscription subscription, JsonNode sourcePayload) {
-        Delivery delivery = deliveryRepository.save(Delivery.builder()
+        // saveAndFlush (not save): forces the INSERT to execute now, in its own statement, so
+        // @CreationTimestamp actually populates createdAt. Observed live against real Postgres:
+        // deferring the flush to transaction commit let this INSERT and the later state-update
+        // UPDATE coalesce into a single statement, silently leaving created_at null while
+        // updated_at (GenerationTiming.ALWAYS) still populated correctly.
+        Delivery delivery = deliveryRepository.saveAndFlush(Delivery.builder()
                 .eventId(event.getId())
                 .subscriptionId(subscription.getId())
                 .targetId(subscription.getTarget().getId())

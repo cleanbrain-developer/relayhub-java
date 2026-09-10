@@ -31,4 +31,4 @@ docker compose up -d      # Postgres only for now
 ./gradlew bootRun
 ```
 
-`./gradlew test` runs against an in-memory H2 database and does not require Docker. Running against real Postgres has been manually verified but is not yet covered by an automated test — see `docs/status/current-state.md` ("Known constraints").
+`./gradlew test` runs against an in-memory H2 database and does not require Docker. Both Spec 001 and Spec 002 have additionally been manually verified against real Postgres, but neither is yet covered by an automated Postgres test — see `docs/status/current-state.md` ("Known constraints").
