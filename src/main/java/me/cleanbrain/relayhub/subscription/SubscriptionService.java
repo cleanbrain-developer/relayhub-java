@@ -48,11 +48,11 @@ public class SubscriptionService {
     }
 
     public List<Subscription> findAll() {
-        return subscriptionRepository.findAll();
+        return subscriptionRepository.findAllWithDetails();
     }
 
     public Subscription getById(UUID id) {
-        return subscriptionRepository.findById(id)
+        return subscriptionRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new NotFoundException("Subscription not found: " + id));
     }
 

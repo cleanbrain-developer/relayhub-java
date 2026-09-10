@@ -112,4 +112,62 @@ class AdminConsoleApiTest {
                 new HttpEntity<>("{}", headers), String.class);
         assertThat(ingressProbe.getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);
     }
+
+    /**
+     * Regression test for a real bug Spec 005's list/get endpoints surfaced: with
+     * {@code open-in-view: false}, SourceEventResponse.from()/SubscriptionResponse.from() reading
+     * a lazy {@code source}/{@code sourceEvent}/{@code target} association outside the repository
+     * call's own transaction throws LazyInitializationException. Nothing had exercised
+     * GET /api/sources/{sourceKey}/events/{key} or the new Subscription list/get endpoints before
+     * this spec — not even a test — so this existed latent since Spec 001. Fixed via eager
+     * {@code join fetch} queries (see SourceEventRepository/SubscriptionRepository) instead of
+     * the plain derived queries this test would otherwise 500 against.
+     */
+    @Test
+    void sourceEventAndSubscriptionReadsDoNotThrowLazyInitializationException() throws Exception {
+        String baseUrl = "http://localhost:" + port;
+        TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        admin.postForEntity(baseUrl + "/api/sources", new HttpEntity<>("""
+                {"key":"lazy-test-source","name":"Lazy Test Source","description":"x"}
+                """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/sources/lazy-test-source/events", new HttpEntity<>("""
+                {"key":"created","name":"Created","description":"x","resourceType":"thing","operation":"CREATED","resourceIdPath":"$.id"}
+                """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/targets", new HttpEntity<>("""
+                {"key":"lazy-test-target","name":"Lazy Test Target","description":"x","baseUrl":"http://localhost:1"}
+                """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/subscriptions", new HttpEntity<>("""
+                {"sourceKey":"lazy-test-source","sourceEventKey":"created","targetKey":"lazy-test-target",
+                 "name":"Sub","description":"x","targetMethod":"POST","targetPath":"/x","targetPayloadTemplate":"{}"}
+                """, headers), String.class);
+
+        // Previously 500 (LazyInitializationException on sourceEvent.getSource()).
+        ResponseEntity<String> eventList = restTemplate.getForEntity(
+                baseUrl + "/api/sources/lazy-test-source/events", String.class);
+        assertThat(eventList.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(eventList.getBody()).contains("\"sourceKey\":\"lazy-test-source\"");
+
+        ResponseEntity<String> eventGet = restTemplate.getForEntity(
+                baseUrl + "/api/sources/lazy-test-source/events/created", String.class);
+        assertThat(eventGet.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        // Previously 500 (LazyInitializationException on sourceEvent/target).
+        ResponseEntity<String> subList = restTemplate.getForEntity(baseUrl + "/api/subscriptions", String.class);
+        assertThat(subList.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode subs = objectMapper.readTree(subList.getBody());
+        String subId = null;
+        for (JsonNode s : subs) {
+            if ("Sub".equals(s.get("name").asText())) {
+                subId = s.get("id").asText();
+            }
+        }
+        assertThat(subId).isNotNull();
+
+        ResponseEntity<String> subGet = restTemplate.getForEntity(baseUrl + "/api/subscriptions/" + subId, String.class);
+        assertThat(subGet.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(subGet.getBody()).contains("\"sourceEventKey\":\"created\"").contains("\"targetKey\":\"lazy-test-target\"");
+    }
 }
