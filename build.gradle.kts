@@ -36,6 +36,9 @@ dependencies {
     testImplementation("com.h2database:h2")
     testImplementation("org.wiremock:wiremock-standalone:3.9.2")
     testImplementation("org.awaitility:awaitility:4.2.2")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:kafka")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -33,4 +33,4 @@ docker compose up -d      # Postgres + Kafka
 
 Ingress is asynchronous: `POST /ingress/v1/...` returns as soon as the Event and its Outbox rows are durably stored, before any Target has been called. Poll `GET /api/deliveries?eventId=` to see delivery outcomes.
 
-`./gradlew test` runs against an in-memory H2 database and an embedded Kafka broker (`@EmbeddedKafka`) and does not require Docker. All three specs have additionally been manually verified against real Postgres + Kafka, but neither is yet covered by an automated Testcontainers-based test — see `docs/status/current-state.md` ("Known constraints").
+`./gradlew test` covers both the fast path (in-memory H2 + `@EmbeddedKafka`, no Docker needed) and `PostgresKafkaIntegrationTest` (Testcontainers, real Postgres + Kafka — **requires Docker**), which runs the same combined scenario against real infrastructure and exercises the actual production `application.yml` settings, not the H2 test profile's.
