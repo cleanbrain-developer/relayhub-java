@@ -1,13 +1,32 @@
 name: CI
 
+# test runs on every push/PR to master. build-and-push and deploy are the CI/CD bridge to the
+# single Hetzner K3s server (same interim-before-ArgoCD model as english-core-speaking/
+# cleanbrain-me-entrance) and only run on an actual push to master — never for a PR, and
+# `deploy` additionally gates on ENABLE_PRODUCTION_DEPLOY so a push before the cluster
+# administrator has bootstrapped the api Deployment (see cleanbrain-me-infra's README
+# "relayhub-java") doesn't hard-fail on `kubectl set image` against a Deployment that doesn't
+# exist yet. Declarative base manifests (namespace/probes/resources/routing) live in
+# cleanbrain-me-infra and are NOT re-applied by this workflow.
+
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch: {}
+
+concurrency:
+  group: relayhub-java-production-deploy
+  cancel-in-progress: false
 
 permissions:
   contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: cleanbrain-developer
+  NAMESPACE: cleanbrain-me-relayhub-java
 
 jobs:
   test:
@@ -40,3 +59,81 @@ jobs:
           name: test-reports
           path: build/reports/tests/test/
           retention-days: 14
+
+  build-and-push:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/relayhub-java:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/relayhub-java:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    # See cleanbrain-me-infra's README "relayhub-java" for how/when the cluster administrator
+    # flips this repository variable on, same convention as english-core-speaking/entrance.
+    if: github.ref == 'refs/heads/master' && vars.ENABLE_PRODUCTION_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Configure known SSH host key
+        env:
+          KNOWN_HOSTS: ${{ secrets.HETZNER_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.HETZNER_SSH_HOST }}
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
+          SSH_PORT: ${{ secrets.HETZNER_SSH_PORT }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          KEY_FILE="$(mktemp)"
+          printf '%s\n' "$SSH_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          PORT="${SSH_PORT:-22}"
+
+          REMOTE_SCRIPT='set -euo pipefail
+          SHA="$1"
+          NS="cleanbrain-me-relayhub-java"
+          # relayhub-demo-systems deploys into this SAME namespace via its own CI, so
+          # current-context cannot be relied on to pick the right identity — see
+          # cleanbrain-me-infra README "Multi-application kubeconfig on the deploy host".
+          CTX="ci-deployer-relayhub-java@cleanbrain-me-k3s"
+          export KUBECONFIG=/home/deploy/.kube/config
+          kubectl --context="$CTX" -n "$NS" set image deployment/api api=ghcr.io/cleanbrain-developer/relayhub-java:"$SHA"
+          kubectl --context="$CTX" -n "$NS" rollout status deployment/api --timeout=180s'
+
+          ssh -i "$KEY_FILE" -p "$PORT" \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$SSH_USER@$SSH_HOST" bash -s -- "$GIT_SHA" <<< "$REMOTE_SCRIPT"
+
+          rm -f "$KEY_FILE"

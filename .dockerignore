@@ -1,0 +1,9 @@
+build/
+.gradle/
+.git/
+docs/
+specs/
+scripts/
+observability/
+*.md
+docker-compose.yml
