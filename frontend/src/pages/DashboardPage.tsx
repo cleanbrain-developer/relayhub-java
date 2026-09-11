@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { get } from "../api";
 import { Delivery, DeliverySummary } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { MetricsChart } from "../components/MetricsChart";
 
 export function DashboardPage() {
   const [summary, setSummary] = useState<DeliverySummary | null>(null);
@@ -38,6 +39,19 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      <div className="chart-row">
+        <MetricsChart
+          title="Delivery attempts / min"
+          query='sum by (status) (rate(relayhub_delivery_attempts_total[5m]) * 60)'
+          seriesLabel={(m) => m.status ?? "unknown"}
+        />
+        <MetricsChart
+          title="Ingress events / min"
+          query='sum by (outcome) (rate(relayhub_ingress_events_total[5m]) * 60)'
+          seriesLabel={(m) => m.outcome ?? "unknown"}
+        />
+      </div>
 
       <h2>Recent Deliveries</h2>
       <table>
