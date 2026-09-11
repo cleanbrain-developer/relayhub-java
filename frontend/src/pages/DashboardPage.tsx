@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { get } from "../api";
-import { Delivery, DeliverySummary } from "../types";
+import { Delivery, DeliverySummary, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { MetricsChart } from "../components/MetricsChart";
 
 export function DashboardPage() {
   const [summary, setSummary] = useState<DeliverySummary | null>(null);
   const [recent, setRecent] = useState<Delivery[]>([]);
+  const [targets, setTargets] = useState<Target[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const targetKeyById = useMemo(() => Object.fromEntries(targets.map((t) => [t.id, t.key])), [targets]);
 
   useEffect(() => {
     Promise.all([get<DeliverySummary>("/api/deliveries/summary"), get<Delivery[]>("/api/deliveries")])
@@ -17,6 +20,7 @@ export function DashboardPage() {
         setRecent(deliveries.slice(0, 10));
       })
       .catch((err) => setError((err as Error).message));
+    get<Target[]>("/api/targets").then(setTargets).catch(() => {});
   }, []);
 
   return (
@@ -58,6 +62,7 @@ export function DashboardPage() {
         <thead>
           <tr>
             <th>State</th>
+            <th>Target</th>
             <th>Attempts</th>
             <th>Updated</th>
             <th></th>
@@ -68,6 +73,9 @@ export function DashboardPage() {
             <tr key={d.id}>
               <td>
                 <StatusBadge value={d.state} />
+              </td>
+              <td>
+                <code>{targetKeyById[d.targetId] ?? d.targetId.slice(0, 8)}</code>
               </td>
               <td>{d.attemptCount}</td>
               <td>{new Date(d.updatedAt).toLocaleString()}</td>
