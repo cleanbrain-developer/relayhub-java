@@ -62,6 +62,18 @@ export function SourcesPage() {
     }
   }
 
+  async function hardDelete(key: string) {
+    if (!confirm(`Permanently delete Source "${key}"? This cannot be undone. Blocked if any Source Event still exists for it.`))
+      return;
+    setError(null);
+    try {
+      await del(`/api/sources/${key}?hard=true`);
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -130,6 +142,9 @@ export function SourcesPage() {
                   <>
                     <button onClick={() => startEdit(s)}>{editingKey === s.key ? "Close" : "Edit"}</button>
                     {s.status === "ACTIVE" && <button onClick={() => deactivate(s.key)}>Deactivate</button>}
+                    <button className="btn-danger" onClick={() => hardDelete(s.key)}>
+                      Delete permanently
+                    </button>
                   </>
                 )}
               </div>

@@ -105,6 +105,17 @@ export function SubscriptionsPage() {
     }
   }
 
+  async function hardDelete(id: string) {
+    if (!confirm("Permanently delete this Subscription? This cannot be undone.")) return;
+    setError(null);
+    try {
+      await del(`/api/subscriptions/${id}?hard=true`);
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -241,6 +252,9 @@ export function SubscriptionsPage() {
                   <>
                     <button onClick={() => startEdit(s)}>{editingId === s.id ? "Close" : "Edit"}</button>
                     {s.status === "ACTIVE" && <button onClick={() => deactivate(s.id)}>Deactivate</button>}
+                    <button className="btn-danger" onClick={() => hardDelete(s.id)}>
+                      Delete permanently
+                    </button>
                   </>
                 )}
               </div>

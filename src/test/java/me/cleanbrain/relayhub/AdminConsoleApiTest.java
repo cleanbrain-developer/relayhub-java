@@ -170,4 +170,75 @@ class AdminConsoleApiTest {
         assertThat(subGet.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(subGet.getBody()).contains("\"sourceEventKey\":\"created\"").contains("\"targetKey\":\"lazy-test-target\"");
     }
+
+    /**
+     * Verifies hard delete (?hard=true, maintainer request 2026-09-12, on top of the default
+     * soft delete): actually removes the row (GET 404s afterward, not just status -&gt; INACTIVE),
+     * and is blocked with 409 while a real DB foreign key still points at it (SourceEvent ->
+     * Source, Subscription -> SourceEvent/Target) — deleting leaf-first (Subscription, then
+     * SourceEvent, then Source/Target) succeeds once nothing references them anymore.
+     */
+    @Test
+    void hardDeleteRemovesRowButIsBlockedWhileReferenced() throws Exception {
+        String baseUrl = "http://localhost:" + port;
+        TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        admin.postForEntity(baseUrl + "/api/sources", new HttpEntity<>("""
+                {"key":"hard-delete-source","name":"Hard Delete Source","description":"x"}
+                """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/sources/hard-delete-source/events", new HttpEntity<>("""
+                {"key":"created","name":"Created","description":"x","resourceType":"thing","operation":"CREATED","resourceIdPath":"$.id"}
+                """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/targets", new HttpEntity<>("""
+                {"key":"hard-delete-target","name":"Hard Delete Target","description":"x","baseUrl":"http://localhost:1"}
+                """, headers), String.class);
+        ResponseEntity<String> subCreate = admin.postForEntity(baseUrl + "/api/subscriptions", new HttpEntity<>("""
+                {"sourceKey":"hard-delete-source","sourceEventKey":"created","targetKey":"hard-delete-target",
+                 "name":"HD Sub","description":"x","targetMethod":"POST","targetPath":"/x","targetPayloadTemplate":"{}"}
+                """, headers), String.class);
+        String subId = objectMapper.readTree(subCreate.getBody()).get("id").asText();
+
+        // Blocked: Source still has a Source Event.
+        ResponseEntity<String> sourceBlocked = admin.exchange(
+                baseUrl + "/api/sources/hard-delete-source?hard=true", HttpMethod.DELETE, null, String.class);
+        assertThat(sourceBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        // Blocked: Source Event and Target still have a Subscription.
+        ResponseEntity<String> eventBlocked = admin.exchange(
+                baseUrl + "/api/sources/hard-delete-source/events/created?hard=true", HttpMethod.DELETE, null, String.class);
+        assertThat(eventBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        ResponseEntity<String> targetBlocked = admin.exchange(
+                baseUrl + "/api/targets/hard-delete-target?hard=true", HttpMethod.DELETE, null, String.class);
+        assertThat(targetBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        // Leaf-first: Subscription has no dependents, always hard-deletable.
+        ResponseEntity<Void> subDeleted = admin.exchange(
+                baseUrl + "/api/subscriptions/" + subId + "?hard=true", HttpMethod.DELETE, null, Void.class);
+        assertThat(subDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(restTemplate.getForEntity(baseUrl + "/api/subscriptions/" + subId, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Now the Source Event and Target are unblocked.
+        ResponseEntity<Void> eventDeleted = admin.exchange(
+                baseUrl + "/api/sources/hard-delete-source/events/created?hard=true", HttpMethod.DELETE, null, Void.class);
+        assertThat(eventDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(restTemplate.getForEntity(baseUrl + "/api/sources/hard-delete-source/events/created", String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        ResponseEntity<Void> targetDeleted = admin.exchange(
+                baseUrl + "/api/targets/hard-delete-target?hard=true", HttpMethod.DELETE, null, Void.class);
+        assertThat(targetDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(restTemplate.getForEntity(baseUrl + "/api/targets/hard-delete-target", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+
+        // And now the Source itself is unblocked too.
+        ResponseEntity<Void> sourceDeleted = admin.exchange(
+                baseUrl + "/api/sources/hard-delete-source?hard=true", HttpMethod.DELETE, null, Void.class);
+        assertThat(sourceDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(restTemplate.getForEntity(baseUrl + "/api/sources/hard-delete-source", String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
 }

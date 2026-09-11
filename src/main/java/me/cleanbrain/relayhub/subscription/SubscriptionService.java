@@ -74,4 +74,16 @@ public class SubscriptionService {
         Subscription subscription = getById(id);
         subscription.setStatus(Status.INACTIVE);
     }
+
+    /**
+     * Permanently removes the row — admin-only (see security/SecurityConfig.java), on top of
+     * (not instead of) {@link #deactivate}. Always safe at the DB level: nothing has a foreign
+     * key to a Subscription (see db/migration/V1__init_schema.sql) — Delivery/Event/OutboxEvent
+     * reference it by plain UUID, same already-accepted trade-off as the retention cleanup job.
+     */
+    @Transactional
+    public void hardDelete(UUID id) {
+        Subscription subscription = getById(id);
+        subscriptionRepository.delete(subscription);
+    }
 }

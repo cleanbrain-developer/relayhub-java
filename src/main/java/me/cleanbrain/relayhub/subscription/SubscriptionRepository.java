@@ -37,4 +37,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     /** Same eager-load reasoning as {@link #findAllWithDetails} — for the single-Subscription GET/PUT. */
     @Query("select s from Subscription s join fetch s.sourceEvent join fetch s.target where s.id = :id")
     Optional<Subscription> findWithDetailsById(@Param("id") UUID id);
+
+    // Hard-delete guards (any status, not just ACTIVE — an INACTIVE Subscription still holds a
+    // real FK to its SourceEvent/Target, so it would still block a hard delete of either).
+    long countBySourceEvent_Id(UUID sourceEventId);
+
+    long countByTarget_Id(UUID targetId);
 }

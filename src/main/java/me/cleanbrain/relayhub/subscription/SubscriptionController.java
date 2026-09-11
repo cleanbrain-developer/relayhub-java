@@ -40,9 +40,14 @@ public class SubscriptionController {
         return SubscriptionResponse.from(subscriptionService.update(id, request));
     }
 
+    /** ?hard=true permanently deletes the row instead of the default soft delete (deactivate). */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivate(@PathVariable UUID id) {
-        subscriptionService.deactivate(id);
+    public ResponseEntity<Void> delete(@PathVariable UUID id, @RequestParam(defaultValue = "false") boolean hard) {
+        if (hard) {
+            subscriptionService.hardDelete(id);
+        } else {
+            subscriptionService.deactivate(id);
+        }
         return ResponseEntity.noContent().build();
     }
 }

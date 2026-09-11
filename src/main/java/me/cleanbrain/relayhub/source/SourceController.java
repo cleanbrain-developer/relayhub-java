@@ -40,8 +40,12 @@ public class SourceController {
     }
 
     @DeleteMapping("/{key}")
-    public ResponseEntity<Void> deactivate(@PathVariable String key) {
-        sourceService.deactivate(key);
+    public ResponseEntity<Void> delete(@PathVariable String key, @RequestParam(defaultValue = "false") boolean hard) {
+        if (hard) {
+            sourceService.hardDelete(key);
+        } else {
+            sourceService.deactivate(key);
+        }
         return ResponseEntity.noContent().build();
     }
 }

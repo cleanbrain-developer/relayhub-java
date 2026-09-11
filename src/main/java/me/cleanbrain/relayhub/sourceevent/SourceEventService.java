@@ -7,6 +7,7 @@ import me.cleanbrain.relayhub.source.Source;
 import me.cleanbrain.relayhub.source.SourceService;
 import me.cleanbrain.relayhub.sourceevent.dto.SourceEventCreateRequest;
 import me.cleanbrain.relayhub.sourceevent.dto.SourceEventUpdateRequest;
+import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,11 @@ public class SourceEventService {
 
     private final SourceEventRepository sourceEventRepository;
     private final SourceService sourceService;
+    // Repository, not SubscriptionService — SubscriptionService already depends on this class
+    // (to resolve a Subscription's SourceEvent by key), so depending back on the service would
+    // be circular. The repository-level dependency avoids that while still letting hardDelete
+    // check for referencing Subscriptions below.
+    private final SubscriptionRepository subscriptionRepository;
 
     @Transactional
     public SourceEvent create(String sourceKey, SourceEventCreateRequest request) {
@@ -82,5 +88,23 @@ public class SourceEventService {
     public void deactivate(String sourceKey, String key) {
         SourceEvent sourceEvent = getBySourceKeyAndKey(sourceKey, key);
         sourceEvent.setStatus(Status.INACTIVE);
+    }
+
+    /**
+     * Permanently removes the row — admin-only. Blocked (409, via IllegalStateException — see
+     * GlobalExceptionHandler) while any Subscription (any status) still references it, since
+     * {@code subscriptions.source_event_id} is a real DB foreign key (see
+     * db/migration/V1__init_schema.sql) — deactivate/hard-delete those Subscriptions first.
+     */
+    @Transactional
+    public void hardDelete(String sourceKey, String key) {
+        SourceEvent sourceEvent = getBySourceKeyAndKey(sourceKey, key);
+        long subscriptionCount = subscriptionRepository.countBySourceEvent_Id(sourceEvent.getId());
+        if (subscriptionCount > 0) {
+            throw new IllegalStateException(
+                    "Cannot permanently delete Source Event %s/%s: %d Subscription(s) still reference it"
+                            .formatted(sourceKey, key, subscriptionCount));
+        }
+        sourceEventRepository.delete(sourceEvent);
     }
 }

@@ -3,6 +3,7 @@ package me.cleanbrain.relayhub.target;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
+import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
 import me.cleanbrain.relayhub.target.dto.TargetUpdateRequest;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,10 @@ import java.util.List;
 public class TargetService {
 
     private final TargetRepository targetRepository;
+    // Repository, not SubscriptionService — see SourceEventService's own comment on the same
+    // pattern (avoids a circular service dependency; SubscriptionService already depends on
+    // TargetService).
+    private final SubscriptionRepository subscriptionRepository;
 
     @Transactional
     public Target create(TargetCreateRequest request) {
@@ -56,5 +61,22 @@ public class TargetService {
     public void deactivate(String key) {
         Target target = getByKey(key);
         target.setStatus(Status.INACTIVE);
+    }
+
+    /**
+     * Permanently removes the row — admin-only. Blocked (409) while any Subscription (any
+     * status) still references it, since {@code subscriptions.target_id} is a real DB foreign
+     * key — deactivate/hard-delete those Subscriptions first.
+     */
+    @Transactional
+    public void hardDelete(String key) {
+        Target target = getByKey(key);
+        long subscriptionCount = subscriptionRepository.countByTarget_Id(target.getId());
+        if (subscriptionCount > 0) {
+            throw new IllegalStateException(
+                    "Cannot permanently delete Target %s: %d Subscription(s) still reference it"
+                            .formatted(key, subscriptionCount));
+        }
+        targetRepository.delete(target);
     }
 }

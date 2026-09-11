@@ -28,4 +28,7 @@ public interface SourceEventRepository extends JpaRepository<SourceEvent, UUID> 
     /** Same eager-load reasoning as {@link #findBySourceKeyAndKey} — used by the Spec 005 list endpoint. */
     @Query("select se from SourceEvent se join fetch se.source where se.source.key = :sourceKey")
     List<SourceEvent> findBySourceKey(@Param("sourceKey") String sourceKey);
+
+    /** Hard-delete guard for Source — any status still holds a real FK to it. */
+    long countBySource_Id(UUID sourceId);
 }

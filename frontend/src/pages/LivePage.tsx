@@ -21,6 +21,10 @@ interface Pulse {
   to: Point;
   color: string;
   start: number;
+  /** Perpendicular offset (px) of the quadratic-bezier control point — a random arc per pulse,
+   *  positive or negative, so consecutive missiles along the same edge don't overlap in a
+   *  perfectly straight line. */
+  arc: number;
 }
 
 const HUB_X = 480;
@@ -61,8 +65,14 @@ export function LivePage() {
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    get<Source[]>("/api/sources").then(setSources).catch((e) => console.error("Failed to load sources", e));
-    get<Target[]>("/api/targets").then(setTargets).catch((e) => console.error("Failed to load targets", e));
+    // ACTIVE only — a deactivated Source/Target can't actually produce traffic (Subscriptions
+    // built on it are excluded from delivery too), so it has no place on a *live* traffic map.
+    get<Source[]>("/api/sources")
+      .then((all) => setSources(all.filter((s) => s.status === "ACTIVE")))
+      .catch((e) => console.error("Failed to load sources", e));
+    get<Target[]>("/api/targets")
+      .then((all) => setTargets(all.filter((t) => t.status === "ACTIVE")))
+      .catch((e) => console.error("Failed to load targets", e));
   }, []);
 
   const sourcePositions = useMemo(() => {
@@ -93,10 +103,37 @@ export function LivePage() {
   }
 
   function spawnPulse(from: Point, to: Point, color: string) {
-    pulsesRef.current = [...pulsesRef.current, { id: pulseId.current++, from, to, color, start: performance.now() }];
+    // Random arc (not always the same straight line) and slightly randomized duration/scale give
+    // each "missile" its own flight instead of a mechanical, identical repeat every time.
+    const arc = (Math.random() - 0.5) * 70;
+    pulsesRef.current = [
+      ...pulsesRef.current,
+      { id: pulseId.current++, from, to, color, start: performance.now(), arc },
+    ];
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(tick);
     }
+  }
+
+  /** Position + heading along pulse `p`'s curved flight path at animation progress `t` (0..1) —
+   *  a quadratic bezier through `p.arc`'s perpendicular offset, not a straight line. */
+  function pointOnArc(p: Pulse, t: number): { x: number; y: number; angleDeg: number } {
+    const mx = (p.from.x + p.to.x) / 2;
+    const my = (p.from.y + p.to.y) / 2;
+    const dx = p.to.x - p.from.x;
+    const dy = p.to.y - p.from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    // Perpendicular unit vector, scaled by this pulse's own random arc offset.
+    const cx = mx + (-dy / len) * p.arc;
+    const cy = my + (dx / len) * p.arc;
+
+    const x = (1 - t) * (1 - t) * p.from.x + 2 * (1 - t) * t * cx + t * t * p.to.x;
+    const y = (1 - t) * (1 - t) * p.from.y + 2 * (1 - t) * t * cy + t * t * p.to.y;
+    // Bezier tangent (derivative) — which way the "missile" is currently pointing.
+    const tx = 2 * (1 - t) * (cx - p.from.x) + 2 * t * (p.to.x - cx);
+    const ty = 2 * (1 - t) * (cy - p.from.y) + 2 * t * (p.to.y - cy);
+    const angleDeg = (Math.atan2(ty, tx) * 180) / Math.PI;
+    return { x, y, angleDeg };
   }
 
   useEffect(() => {
@@ -182,20 +219,24 @@ export function LivePage() {
           </text>
 
           {renderedPulses.map((p) => {
-            const x = p.from.x + (p.to.x - p.from.x) * p.progress;
-            const y = p.from.y + (p.to.y - p.from.y) * p.progress;
+            const { x, y, angleDeg } = pointOnArc(p, p.progress);
             const opacity = p.progress > 0.8 ? 1 - (p.progress - 0.8) / 0.2 : 1;
+            // A short fading trail (a handful of ghost positions just behind the missile's nose)
+            // reads as motion far more convincingly than a single dot ever does.
+            const trail = [0.09, 0.18, 0.27].map((back) => pointOnArc(p, Math.max(p.progress - back, 0)));
             return (
-              <circle
-                key={p.id}
-                cx={x}
-                cy={y}
-                r={PULSE_RADIUS}
-                fill={p.color}
-                opacity={opacity}
-                className="topology-pulse"
-                style={{ color: p.color }}
-              />
+              <g key={p.id} opacity={opacity}>
+                {trail.map((t, i) => (
+                  <circle key={i} cx={t.x} cy={t.y} r={PULSE_RADIUS * (0.6 - i * 0.15)} fill={p.color} opacity={0.35 - i * 0.1} />
+                ))}
+                <polygon
+                  points={`${PULSE_RADIUS + 4},0 ${-PULSE_RADIUS + 2},${PULSE_RADIUS} ${-PULSE_RADIUS + 2},${-PULSE_RADIUS}`}
+                  fill={p.color}
+                  className="topology-pulse"
+                  style={{ color: p.color }}
+                  transform={`translate(${x} ${y}) rotate(${angleDeg})`}
+                />
+              </g>
             );
           })}
         </svg>

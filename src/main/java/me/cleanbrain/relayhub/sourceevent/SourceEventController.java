@@ -42,8 +42,13 @@ public class SourceEventController {
     }
 
     @DeleteMapping("/{key}")
-    public ResponseEntity<Void> deactivate(@PathVariable String sourceKey, @PathVariable String key) {
-        sourceEventService.deactivate(sourceKey, key);
+    public ResponseEntity<Void> delete(@PathVariable String sourceKey, @PathVariable String key,
+                                        @RequestParam(defaultValue = "false") boolean hard) {
+        if (hard) {
+            sourceEventService.hardDelete(sourceKey, key);
+        } else {
+            sourceEventService.deactivate(sourceKey, key);
+        }
         return ResponseEntity.noContent().build();
     }
 }

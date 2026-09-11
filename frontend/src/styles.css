@@ -279,6 +279,15 @@ button:disabled {
   border-color: var(--accent-hover);
 }
 
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger-soft);
+}
+
 td button {
   padding: 0.3rem 0.6rem;
   font-size: 0.78rem;

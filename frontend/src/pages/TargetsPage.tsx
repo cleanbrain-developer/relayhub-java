@@ -62,6 +62,18 @@ export function TargetsPage() {
     }
   }
 
+  async function hardDelete(key: string) {
+    if (!confirm(`Permanently delete Target "${key}"? This cannot be undone. Blocked if any Subscription still uses it.`))
+      return;
+    setError(null);
+    try {
+      await del(`/api/targets/${key}?hard=true`);
+      reload();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -139,6 +151,9 @@ export function TargetsPage() {
                   <>
                     <button onClick={() => startEdit(t)}>{editingKey === t.key ? "Close" : "Edit"}</button>
                     {t.status === "ACTIVE" && <button onClick={() => deactivate(t.key)}>Deactivate</button>}
+                    <button className="btn-danger" onClick={() => hardDelete(t.key)}>
+                      Delete permanently
+                    </button>
                   </>
                 )}
               </div>
