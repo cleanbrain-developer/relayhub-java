@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.event.Event;
 import me.cleanbrain.relayhub.event.EventRepository;
+import me.cleanbrain.relayhub.live.LiveActivityBroadcaster;
+import me.cleanbrain.relayhub.live.LiveEvent;
 import me.cleanbrain.relayhub.mapping.MappingService;
 import me.cleanbrain.relayhub.subscription.Subscription;
 import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
@@ -49,6 +51,7 @@ public class DeliveryService {
     private final EventRepository eventRepository;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+    private final LiveActivityBroadcaster liveActivityBroadcaster;
 
     // Forces HTTP/1.1: the JDK HttpClient's default HTTP/2 upgrade attempt causes
     // "EOF reached while reading" against plain HTTP/1.1 Target servers (observed against
@@ -176,6 +179,8 @@ public class DeliveryService {
         }
         sample.stop(meterRegistry.timer("relayhub.delivery.attempt.duration", "status", success ? "success" : "failed"));
         meterRegistry.counter("relayhub.delivery.attempts", "status", success ? "success" : "failed").increment();
+        liveActivityBroadcaster.broadcast(LiveEvent.delivery(
+                subscription.getSourceEvent().getSource().getKey(), subscription.getTarget().getKey(), success));
 
         deliveryAttemptRepository.save(attempt.build());
         delivery.setAttemptCount(attemptNumber);

@@ -5,6 +5,7 @@ import { SourcesPage } from "./pages/SourcesPage";
 import { TargetsPage } from "./pages/TargetsPage";
 import { SubscriptionsPage } from "./pages/SubscriptionsPage";
 import { DeliveriesPage } from "./pages/DeliveriesPage";
+import { LivePage } from "./pages/LivePage";
 import { LoginPage } from "./pages/LoginPage";
 
 export function App() {
@@ -18,6 +19,7 @@ export function App() {
           <Route path="/targets" element={<TargetsPage />} />
           <Route path="/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/deliveries" element={<DeliveriesPage />} />
+          <Route path="/live" element={<LivePage />} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
       </main>

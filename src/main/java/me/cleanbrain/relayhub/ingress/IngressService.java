@@ -25,6 +25,8 @@ import me.cleanbrain.relayhub.outbox.OutboxStatus;
 import me.cleanbrain.relayhub.sourceevent.SourceEvent;
 import me.cleanbrain.relayhub.sourceevent.SourceEventRepository;
 import io.micrometer.core.instrument.MeterRegistry;
+import me.cleanbrain.relayhub.live.LiveActivityBroadcaster;
+import me.cleanbrain.relayhub.live.LiveEvent;
 import me.cleanbrain.relayhub.subscription.Subscription;
 import me.cleanbrain.relayhub.subscription.SubscriptionService;
 import org.slf4j.Logger;
@@ -60,6 +62,7 @@ public class IngressService {
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+    private final LiveActivityBroadcaster liveActivityBroadcaster;
 
     @Transactional
     public IngressResult handle(String ingressPath, HttpMethod method, String rawBody, HttpServletRequest request) {
@@ -107,6 +110,7 @@ public class IngressService {
         }
 
         meterRegistry.counter("relayhub.ingress.events", "outcome", "created").increment();
+        liveActivityBroadcaster.broadcast(LiveEvent.ingress(sourceEvent.getSource().getKey()));
         return new IngressResult(event, queuedCount, false);
     }
 

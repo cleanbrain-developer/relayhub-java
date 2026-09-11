@@ -13,8 +13,16 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
 
     List<Subscription> findBySourceEventIdAndStatus(UUID sourceEventId, Status status);
 
-    /** Eagerly loads {@code target} so the result is safe to use outside the fetching transaction. */
-    @Query("select s from Subscription s join fetch s.target where s.sourceEvent.id = :sourceEventId and s.status = :status")
+    /**
+     * Eagerly loads {@code target} and {@code sourceEvent.source} so the result is safe to use
+     * outside the fetching transaction. The latter was added once {@code DeliveryService.attemptOnce}
+     * started reading {@code subscription.getSourceEvent().getSource().getKey()} (for the live-
+     * activity SSE stream, see live/LiveEvent.java) — a detached {@code Subscription} passed into
+     * {@code deliver()} (exactly what this method exists to produce, for redelivery-simulation
+     * tests) would otherwise throw LazyInitializationException on that access, caught live by
+     * DeliveryDedupTest.
+     */
+    @Query("select s from Subscription s join fetch s.target join fetch s.sourceEvent se join fetch se.source where s.sourceEvent.id = :sourceEventId and s.status = :status")
     List<Subscription> findActiveWithTargetBySourceEventId(@Param("sourceEventId") UUID sourceEventId, @Param("status") Status status);
 
     /**

@@ -18,6 +18,7 @@ export function Nav() {
       <NavLink to="/targets">Targets</NavLink>
       <NavLink to="/subscriptions">Subscriptions</NavLink>
       <NavLink to="/deliveries">Deliveries</NavLink>
+      <NavLink to="/live">Live</NavLink>
       <span className="nav-spacer" />
       {loggedIn ? (
         <button className="link-button" onClick={logout}>
