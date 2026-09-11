@@ -1,13 +1,7 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveCredentials } from "../auth";
-import { ApiError, post } from "../api";
 
-/**
- * No dedicated /api/auth/check endpoint exists — this verifies credentials by actually creating
- * and immediately deleting a throwaway Source, the cheapest existing protected write. A wrong
- * password surfaces as a 401 from that call rather than silently "succeeding" at login.
- */
 export function LoginPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
@@ -19,21 +13,18 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     setChecking(true);
-    saveCredentials({ username, password });
     try {
-      const probeKey = `__login-check-${Date.now()}`;
-      await post(`/api/sources`, { key: probeKey, name: "login check", description: "login check" });
-      await fetch(`/api/sources/${probeKey}`, {
-        method: "DELETE",
+      const res = await fetch("/api/auth/check", {
         headers: { Authorization: "Basic " + btoa(`${username}:${password}`) },
       });
+      if (!res.ok) {
+        setError(res.status === 401 ? "Incorrect username or password." : `Login check failed: HTTP ${res.status}`);
+        return;
+      }
+      saveCredentials({ username, password });
       navigate("/");
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        setError("Incorrect username or password.");
-      } else {
-        setError("Login check failed: " + (err as Error).message);
-      }
+      setError("Login check failed: " + (err as Error).message);
     } finally {
       setChecking(false);
     }

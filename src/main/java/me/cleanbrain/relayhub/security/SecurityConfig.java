@@ -52,6 +52,11 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Evaluated in order, first match wins — this one exception must come
+                        // before the blanket "every GET is public" rule below, or it would never
+                        // be reached. See auth/AuthController.java: the login form's only way to
+                        // validate a password without side-effecting real data.
+                        .requestMatchers(HttpMethod.GET, "/api/auth/check").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .requestMatchers("/ingress/v1/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
