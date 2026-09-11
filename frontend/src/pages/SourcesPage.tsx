@@ -9,6 +9,7 @@ const emptyForm = { key: "", name: "", description: "", authenticationConfig: ""
 export function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", authenticationConfig: "" });
@@ -26,6 +27,7 @@ export function SourcesPage() {
     try {
       await post("/api/sources", form);
       setForm(emptyForm);
+      setShowCreate(false);
       reload();
     } catch (err) {
       setError((err as Error).message);
@@ -33,7 +35,7 @@ export function SourcesPage() {
   }
 
   function startEdit(source: Source) {
-    setEditingKey(source.key);
+    setEditingKey(editingKey === source.key ? null : source.key);
     setEditForm({ name: source.name, description: source.description, authenticationConfig: "" });
   }
 
@@ -61,65 +63,19 @@ export function SourcesPage() {
 
   return (
     <div>
-      <h1>Sources</h1>
+      <div className="page-header">
+        <h1>Sources</h1>
+        {loggedIn && (
+          <button className="btn-primary" onClick={() => setShowCreate(!showCreate)}>
+            {showCreate ? "Cancel" : "+ New Source"}
+          </button>
+        )}
+      </div>
       {error && <p className="error">{error}</p>}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Status</th>
-            {loggedIn && <th></th>}
-          </tr>
-        </thead>
-        <tbody>
-          {sources.map((s) =>
-            editingKey === s.key ? (
-              <tr key={s.key}>
-                <td>{s.key}</td>
-                <td>
-                  <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                </td>
-                <td>
-                  <input
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                  />
-                </td>
-                <td>
-                  <StatusBadge value={s.status} />
-                </td>
-                <td>
-                  <button onClick={() => saveEdit(s.key)}>Save</button>
-                  <button onClick={() => setEditingKey(null)}>Cancel</button>
-                </td>
-              </tr>
-            ) : (
-              <tr key={s.key}>
-                <td>{s.key}</td>
-                <td>{s.name}</td>
-                <td>{s.description}</td>
-                <td>
-                  <StatusBadge value={s.status} />
-                </td>
-                {loggedIn && (
-                  <td>
-                    <button onClick={() => startEdit(s)}>Edit</button>
-                    {s.status === "ACTIVE" && <button onClick={() => deactivate(s.key)}>Deactivate</button>}
-                  </td>
-                )}
-              </tr>
-            )
-          )}
-        </tbody>
-      </table>
-
-      {loggedIn && (
-        <>
-          <h2>Register a Source</h2>
-          <form onSubmit={handleCreate} className="form-grid">
+      {showCreate && loggedIn && (
+        <form onSubmit={handleCreate} className="card form-card">
+          <div className="form-grid">
             <label>
               Key
               <input required value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} />
@@ -128,7 +84,7 @@ export function SourcesPage() {
               Name
               <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
-            <label>
+            <label className="form-wide">
               Description
               <input
                 required
@@ -143,10 +99,57 @@ export function SourcesPage() {
                 onChange={(e) => setForm({ ...form, authenticationConfig: e.target.value })}
               />
             </label>
-            <button type="submit">Create</button>
-          </form>
-        </>
+          </div>
+          <button type="submit" className="btn-primary">
+            Create Source
+          </button>
+        </form>
       )}
+
+      <div className="card-list">
+        {sources.map((s) => (
+          <div className="card entity-card" key={s.key}>
+            <div className="entity-card-header">
+              <div>
+                <strong>{s.name}</strong>
+                <div className="muted">
+                  <code>{s.key}</code> &middot; {s.description}
+                </div>
+              </div>
+              <div className="entity-card-actions">
+                <StatusBadge value={s.status} />
+                {loggedIn && (
+                  <>
+                    <button onClick={() => startEdit(s)}>{editingKey === s.key ? "Close" : "Edit"}</button>
+                    {s.status === "ACTIVE" && <button onClick={() => deactivate(s.key)}>Deactivate</button>}
+                  </>
+                )}
+              </div>
+            </div>
+            {editingKey === s.key && (
+              <div className="entity-card-edit">
+                <div className="form-grid">
+                  <label>
+                    Name
+                    <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                  </label>
+                  <label className="form-wide">
+                    Description
+                    <input
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <button className="btn-primary" onClick={() => saveEdit(s.key)}>
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        {sources.length === 0 && <p className="muted">No Sources yet.</p>}
+      </div>
     </div>
   );
 }

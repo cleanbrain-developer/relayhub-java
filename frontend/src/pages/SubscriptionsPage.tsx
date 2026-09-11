@@ -3,6 +3,9 @@ import { del, get, post, put } from "../api";
 import { isLoggedIn } from "../auth";
 import { HttpVerb, Source, SourceEvent, Subscription, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { MappingBuilder } from "../components/MappingBuilder";
+
+const HTTP_VERBS: HttpVerb[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
 const emptyForm = {
   sourceKey: "",
@@ -22,6 +25,7 @@ export function SubscriptionsPage() {
   const [targets, setTargets] = useState<Target[]>([]);
   const [events, setEvents] = useState<SourceEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -59,6 +63,7 @@ export function SubscriptionsPage() {
       const { sourceKey, sourceEventKey, targetKey, ...rest } = form;
       await post("/api/subscriptions", { sourceKey, sourceEventKey, targetKey, ...rest });
       setForm(emptyForm);
+      setShowCreate(false);
       reload();
     } catch (err) {
       setError((err as Error).message);
@@ -66,7 +71,7 @@ export function SubscriptionsPage() {
   }
 
   function startEdit(sub: Subscription) {
-    setEditingId(sub.id);
+    setEditingId(editingId === sub.id ? null : sub.id);
     setEditForm({
       name: sub.name,
       description: sub.description,
@@ -101,78 +106,19 @@ export function SubscriptionsPage() {
 
   return (
     <div>
-      <h1>Subscriptions</h1>
+      <div className="page-header">
+        <h1>Subscriptions</h1>
+        {loggedIn && (
+          <button className="btn-primary" onClick={() => setShowCreate(!showCreate)}>
+            {showCreate ? "Cancel" : "+ New Subscription"}
+          </button>
+        )}
+      </div>
       {error && <p className="error">{error}</p>}
 
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Source Event</th>
-            <th>Target</th>
-            <th>Method / Path</th>
-            <th>Status</th>
-            {loggedIn && <th></th>}
-          </tr>
-        </thead>
-        <tbody>
-          {subscriptions.map((s) =>
-            editingId === s.id ? (
-              <tr key={s.id}>
-                <td>
-                  <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                </td>
-                <td>{s.sourceEventKey}</td>
-                <td>{s.targetKey}</td>
-                <td>
-                  <select
-                    value={editForm.targetMethod}
-                    onChange={(e) => setEditForm({ ...editForm, targetMethod: e.target.value as HttpVerb })}
-                  >
-                    {["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
-                  <input
-                    value={editForm.targetPath}
-                    onChange={(e) => setEditForm({ ...editForm, targetPath: e.target.value })}
-                  />
-                </td>
-                <td>
-                  <StatusBadge value={s.status} />
-                </td>
-                <td>
-                  <button onClick={() => saveEdit(s.id)}>Save</button>
-                  <button onClick={() => setEditingId(null)}>Cancel</button>
-                </td>
-              </tr>
-            ) : (
-              <tr key={s.id}>
-                <td>{s.name}</td>
-                <td>{s.sourceEventKey}</td>
-                <td>{s.targetKey}</td>
-                <td>
-                  {s.targetMethod} <code>{s.targetPath}</code>
-                </td>
-                <td>
-                  <StatusBadge value={s.status} />
-                </td>
-                {loggedIn && (
-                  <td>
-                    <button onClick={() => startEdit(s)}>Edit</button>
-                    {s.status === "ACTIVE" && <button onClick={() => deactivate(s.id)}>Deactivate</button>}
-                  </td>
-                )}
-              </tr>
-            )
-          )}
-        </tbody>
-      </table>
-
-      {loggedIn && (
-        <>
-          <h2>Register a Subscription</h2>
-          <form onSubmit={handleCreate} className="form-grid">
+      {showCreate && loggedIn && (
+        <form onSubmit={handleCreate} className="card form-card">
+          <div className="form-grid">
             <label>
               Source
               <select
@@ -225,7 +171,7 @@ export function SubscriptionsPage() {
               Name
               <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
-            <label>
+            <label className="form-wide">
               Description
               <input
                 required
@@ -239,7 +185,7 @@ export function SubscriptionsPage() {
                 value={form.targetMethod}
                 onChange={(e) => setForm({ ...form, targetMethod: e.target.value as HttpVerb })}
               >
-                {["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
+                {HTTP_VERBS.map((m) => (
                   <option key={m}>{m}</option>
                 ))}
               </select>
@@ -254,25 +200,99 @@ export function SubscriptionsPage() {
               />
             </label>
             <label className="form-wide">
-              Target payload template (JSON, ${"$"}{"{"}$.jsonpath{"}"} placeholders)
-              <textarea
-                required
+              Payload mapping
+              <MappingBuilder
                 value={form.targetPayloadTemplate}
-                onChange={(e) => setForm({ ...form, targetPayloadTemplate: e.target.value })}
-                rows={3}
+                onChange={(t) => setForm({ ...form, targetPayloadTemplate: t })}
               />
             </label>
             <label>
               Retry policy (optional, free text)
-              <input
-                value={form.retryPolicy}
-                onChange={(e) => setForm({ ...form, retryPolicy: e.target.value })}
-              />
+              <input value={form.retryPolicy} onChange={(e) => setForm({ ...form, retryPolicy: e.target.value })} />
             </label>
-            <button type="submit">Create</button>
-          </form>
-        </>
+          </div>
+          <button type="submit" className="btn-primary">
+            Create Subscription
+          </button>
+        </form>
       )}
+
+      <div className="card-list">
+        {subscriptions.map((s) => (
+          <div className="card entity-card" key={s.id}>
+            <div className="entity-card-header">
+              <div>
+                <strong>{s.name}</strong>
+                <div className="muted">
+                  {s.sourceEventKey} &rarr; {s.targetKey} &middot; {s.targetMethod} <code>{s.targetPath}</code>
+                </div>
+              </div>
+              <div className="entity-card-actions">
+                <StatusBadge value={s.status} />
+                {loggedIn && (
+                  <>
+                    <button onClick={() => startEdit(s)}>{editingId === s.id ? "Close" : "Edit"}</button>
+                    {s.status === "ACTIVE" && <button onClick={() => deactivate(s.id)}>Deactivate</button>}
+                  </>
+                )}
+              </div>
+            </div>
+            {editingId === s.id && (
+              <div className="entity-card-edit">
+                <div className="form-grid">
+                  <label>
+                    Name
+                    <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                  </label>
+                  <label className="form-wide">
+                    Description
+                    <input
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    />
+                  </label>
+                  <label>
+                    Target method
+                    <select
+                      value={editForm.targetMethod}
+                      onChange={(e) => setEditForm({ ...editForm, targetMethod: e.target.value as HttpVerb })}
+                    >
+                      {HTTP_VERBS.map((m) => (
+                        <option key={m}>{m}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Target path
+                    <input
+                      value={editForm.targetPath}
+                      onChange={(e) => setEditForm({ ...editForm, targetPath: e.target.value })}
+                    />
+                  </label>
+                  <label className="form-wide">
+                    Payload mapping
+                    <MappingBuilder
+                      value={editForm.targetPayloadTemplate}
+                      onChange={(t) => setEditForm({ ...editForm, targetPayloadTemplate: t })}
+                    />
+                  </label>
+                  <label>
+                    Retry policy
+                    <input
+                      value={editForm.retryPolicy}
+                      onChange={(e) => setEditForm({ ...editForm, retryPolicy: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <button className="btn-primary" onClick={() => saveEdit(s.id)}>
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+        {subscriptions.length === 0 && <p className="muted">No Subscriptions yet.</p>}
+      </div>
     </div>
   );
 }
