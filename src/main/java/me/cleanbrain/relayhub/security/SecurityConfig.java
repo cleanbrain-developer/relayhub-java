@@ -57,6 +57,10 @@ public class SecurityConfig {
                         // be reached. See auth/AuthController.java: the login form's only way to
                         // validate a password without side-effecting real data.
                         .requestMatchers(HttpMethod.GET, "/api/auth/check").hasRole("ADMIN")
+                        // Same reason: pausing/resuming demo traffic is an admin control action,
+                        // not read-only observability data like /api/metrics/**, so its GET status
+                        // check must also be excepted from the blanket "every GET is public" rule.
+                        .requestMatchers(HttpMethod.GET, "/api/simulator/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .requestMatchers("/ingress/v1/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()

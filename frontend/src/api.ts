@@ -22,6 +22,11 @@ export function get<T>(path: string): Promise<T> {
   return fetch(path).then((res) => handle<T>(res));
 }
 
+/** For the handful of GETs that are admin-only (e.g. /api/auth/check, /api/simulator/status). */
+export function getAuthed<T>(path: string): Promise<T> {
+  return fetch(path, { headers: authHeader() }).then((res) => handle<T>(res));
+}
+
 function withBody(method: string, path: string, body?: unknown): Promise<Response> {
   return fetch(path, {
     method,

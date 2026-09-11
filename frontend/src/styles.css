@@ -421,6 +421,16 @@ code {
   border-radius: 4px;
 }
 
+.live-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.simulator-toggle {
+  margin-bottom: 0;
+}
+
 .live-topology {
   padding: 1rem;
 }
