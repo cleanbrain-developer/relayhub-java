@@ -26,6 +26,7 @@ export function SubscriptionsPage() {
   const [events, setEvents] = useState<SourceEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
@@ -115,6 +116,11 @@ export function SubscriptionsPage() {
         )}
       </div>
       {error && <p className="error">{error}</p>}
+
+      <label className="inline-checkbox">
+        <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+        Show deactivated (soft-deleted) Subscriptions too
+      </label>
 
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
@@ -218,7 +224,9 @@ export function SubscriptionsPage() {
       )}
 
       <div className="card-list">
-        {subscriptions.map((s) => (
+        {subscriptions
+          .filter((s) => showInactive || s.status === "ACTIVE")
+          .map((s) => (
           <div className="card entity-card" key={s.id}>
             <div className="entity-card-header">
               <div>
@@ -291,7 +299,11 @@ export function SubscriptionsPage() {
             )}
           </div>
         ))}
-        {subscriptions.length === 0 && <p className="muted">No Subscriptions yet.</p>}
+        {subscriptions.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
+          <p className="muted">
+            {subscriptions.length === 0 ? "No Subscriptions yet." : "No active Subscriptions — try “Show deactivated”."}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ export function TargetsPage() {
   const [targets, setTargets] = useState<Target[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", baseUrl: "", authenticationConfig: "" });
@@ -73,6 +74,11 @@ export function TargetsPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
+      <label className="inline-checkbox">
+        <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+        Show deactivated (soft-deleted) Targets too
+      </label>
+
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
           <div className="form-grid">
@@ -116,7 +122,9 @@ export function TargetsPage() {
       )}
 
       <div className="card-list">
-        {targets.map((t) => (
+        {targets
+          .filter((t) => showInactive || t.status === "ACTIVE")
+          .map((t) => (
           <div className="card entity-card" key={t.key}>
             <div className="entity-card-header">
               <div>
@@ -157,7 +165,9 @@ export function TargetsPage() {
             )}
           </div>
         ))}
-        {targets.length === 0 && <p className="muted">No Targets yet.</p>}
+        {targets.filter((t) => showInactive || t.status === "ACTIVE").length === 0 && (
+          <p className="muted">{targets.length === 0 ? "No Targets yet." : "No active Targets — try “Show deactivated”."}</p>
+        )}
       </div>
     </div>
   );

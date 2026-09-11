@@ -363,6 +363,20 @@ td button {
   margin-bottom: 0.75rem;
 }
 
+.inline-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.83rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.inline-checkbox input {
+  width: auto;
+}
+
 .badge {
   display: inline-block;
   padding: 0.2rem 0.6rem;

@@ -10,6 +10,7 @@ export function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", authenticationConfig: "" });
@@ -73,6 +74,11 @@ export function SourcesPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
+      <label className="inline-checkbox">
+        <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+        Show deactivated (soft-deleted) Sources too
+      </label>
+
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
           <div className="form-grid">
@@ -107,7 +113,9 @@ export function SourcesPage() {
       )}
 
       <div className="card-list">
-        {sources.map((s) => (
+        {sources
+          .filter((s) => showInactive || s.status === "ACTIVE")
+          .map((s) => (
           <div className="card entity-card" key={s.key}>
             <div className="entity-card-header">
               <div>
@@ -148,7 +156,9 @@ export function SourcesPage() {
             )}
           </div>
         ))}
-        {sources.length === 0 && <p className="muted">No Sources yet.</p>}
+        {sources.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
+          <p className="muted">{sources.length === 0 ? "No Sources yet." : "No active Sources — try “Show deactivated”."}</p>
+        )}
       </div>
     </div>
   );
