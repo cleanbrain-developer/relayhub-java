@@ -1,11 +1,26 @@
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { clearCredentials, isLoggedIn } from "../auth";
 import { useTheme } from "../theme";
+import { fetchTodayCount, recordVisitOnce } from "../visitorCounter";
 
 export function Nav() {
   const navigate = useNavigate();
   const loggedIn = isLoggedIn();
   const [theme, toggleTheme] = useTheme();
+  const [todayCount, setTodayCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await recordVisitOnce();
+      const count = await fetchTodayCount();
+      if (!cancelled) setTodayCount(count);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function logout() {
     clearCredentials();
@@ -21,6 +36,11 @@ export function Nav() {
       <NavLink to="/subscriptions">Subscriptions</NavLink>
       <NavLink to="/deliveries">Deliveries</NavLink>
       <NavLink to="/live">Live</NavLink>
+      {todayCount !== null && (
+        <span className="nav-visitor-count" aria-label="Today's visitor count">
+          Today · {todayCount}
+        </span>
+      )}
       <span className="nav-spacer" />
       <button
         className="theme-toggle"

@@ -116,6 +116,11 @@ body {
   background: var(--accent-soft);
 }
 
+.nav-visitor-count {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .nav-spacer {
   flex: 1;
 }
