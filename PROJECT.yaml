@@ -37,17 +37,18 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-4-live
+  id: phase-5-console-iteration
   status: active
   goal: >-
-    The original design roadmap (vertical slice, reliability, Kafka/
-    Outbox, migrations/dedup, CI, observability) plus the demo-
-    observability extension (seed data, relayhub-demo-systems,
-    Docker Compose integration) are fully built and verified. RelayHub
-    is deployed and live at relayhub-java.developer.cleanbrain.me
-    (cleanbrain-me-infra), confirmed end to end including real DLQ
-    activity in production from relayhub-demo-systems' unattended
-    traffic. Remaining work is maintenance-shaped.
+    The original design roadmap (Specs 001-004) and the demo-observability
+    extension are built, verified, and live at
+    relayhub-java.developer.cleanbrain.me. Since then the admin console
+    (Spec 005) has kept growing through sustained maintainer-driven
+    iteration, not maintenance: Spec 006 (Source/Target field registry,
+    wired into the Subscription mapping UI), a real-time SSE topology view
+    with a DLQ node and an automatic DLQ-replay scheduler, admin hard
+    delete, a dark theme, and several rounds of visual polish on the Live
+    page. See docs/status/current-state.md for the current detailed list.
 
 context:
   human_entrypoint: README.md

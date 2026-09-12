@@ -80,4 +80,4 @@ existing admin auth boundary; reads public, same as everything else.
 
 ## Status
 
-Design only — the maintainer asked to review this before any implementation starts.
+Implemented and deployed (2026-09-12). Backend: `SourceField`/`TargetField` entities, `V2__field_registry.sql`, nested REST controllers under `/api/sources/{sourceKey}/events/{eventKey}/fields` and `/api/targets/{targetKey}/fields`, following the same list/create/edit/soft-delete(+admin hard-delete) contract as every other entity here. Frontend: `FieldRegistryEditor` (full add/edit/delete) surfaced via a "Field mapping" toggle on Sources/Targets cards, and `MappingBuilder`'s two sides became dropdowns sourced from the registries when populated, falling back to free text otherwise — exactly as designed above, no changes to `MappingService`/`DeliveryService`/the Subscription API contract. `DemoDataSeeder` also seeds example fields for the demo scenario so a fresh environment isn't an empty registry.
