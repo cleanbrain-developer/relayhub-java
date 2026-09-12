@@ -101,7 +101,7 @@ public class DeliveryService {
                 .build());
 
         for (int attemptNumber = 1; attemptNumber <= MAX_ATTEMPTS; attemptNumber++) {
-            boolean success = attemptOnce(delivery, subscription, sourcePayload, attemptNumber);
+            boolean success = attemptOnce(delivery, subscription, sourcePayload, attemptNumber, false);
             if (success) {
                 delivery.setState(DeliveryState.SUCCEEDED);
                 meterRegistry.counter("relayhub.delivery.terminal", "state", "succeeded").increment();
@@ -114,10 +114,16 @@ public class DeliveryService {
 
         delivery.setState(DeliveryState.DEAD);
         meterRegistry.counter("relayhub.delivery.terminal", "state", "dead").increment();
+        broadcastDlq(subscription);
         return deliveryRepository.save(delivery);
     }
 
-    /** Re-attempts a DEAD delivery once. Operator-triggered only — see spec.md ("Deliberately out of scope"). */
+    /**
+     * Re-attempts a DEAD delivery once. Two callers: the admin console's manual Replay button
+     * (DeliveryController), and DlqAutoReplayScheduler's periodic sweep — both go through this
+     * same method, so both get the same idempotency/state guard and the same "delivery" +
+     * (on renewed failure) "dlq" live-activity broadcasts.
+     */
     @Transactional
     public Delivery replay(java.util.UUID deliveryId) {
         Delivery delivery = deliveryRepository.findById(deliveryId)
@@ -133,13 +139,22 @@ public class DeliveryService {
                 .orElseThrow(() -> new NotFoundException("Event not found: " + delivery.getEventId()));
         JsonNode sourcePayload = parsePayload(event.getPayload());
 
-        boolean success = attemptOnce(delivery, subscription, sourcePayload, delivery.getAttemptCount() + 1);
+        boolean success = attemptOnce(delivery, subscription, sourcePayload, delivery.getAttemptCount() + 1, true);
         delivery.setState(success ? DeliveryState.SUCCEEDED : DeliveryState.DEAD);
         meterRegistry.counter("relayhub.delivery.replay", "outcome", success ? "succeeded" : "dead").increment();
+        if (!success) {
+            broadcastDlq(subscription);
+        }
         return deliveryRepository.save(delivery);
     }
 
-    private boolean attemptOnce(Delivery delivery, Subscription subscription, JsonNode sourcePayload, int attemptNumber) {
+    private void broadcastDlq(Subscription subscription) {
+        liveActivityBroadcaster.broadcast(LiveEvent.dlq(
+                subscription.getSourceEvent().getSource().getKey(), subscription.getSourceEvent().getKey(),
+                subscription.getTarget().getKey()));
+    }
+
+    private boolean attemptOnce(Delivery delivery, Subscription subscription, JsonNode sourcePayload, int attemptNumber, boolean isReplay) {
         JsonNode targetPayload = mappingService.map(sourcePayload, subscription.getTargetPayloadTemplate());
         String url = subscription.getTarget().getBaseUrl() + subscription.getTargetPath();
 
@@ -181,7 +196,7 @@ public class DeliveryService {
         meterRegistry.counter("relayhub.delivery.attempts", "status", success ? "success" : "failed").increment();
         liveActivityBroadcaster.broadcast(LiveEvent.delivery(
                 subscription.getSourceEvent().getSource().getKey(), subscription.getSourceEvent().getKey(),
-                subscription.getTarget().getKey(), success));
+                subscription.getTarget().getKey(), success, isReplay));
 
         deliveryAttemptRepository.save(attempt.build());
         delivery.setAttemptCount(attemptNumber);

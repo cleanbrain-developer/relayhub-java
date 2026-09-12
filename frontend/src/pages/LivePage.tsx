@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { get, getAuthed, post } from "../api";
 import { isLoggedIn } from "../auth";
-import { Source, Subscription, Target } from "../types";
+import { DeliverySummary, Source, Subscription, Target } from "../types";
 
 interface LiveEvent {
-  stage: "ingress" | "delivery";
+  stage: "ingress" | "delivery" | "dlq";
   sourceKey: string;
   eventKey: string | null;
   targetKey: string | null;
-  status: "success" | "failed" | null;
+  status: "success" | "failed" | "dead" | null;
+  /** True when this "delivery" traversal came from DeliveryService.replay (the manual Replay
+   *  button, or DlqAutoReplayScheduler) rather than the original delivery attempt. */
+  replay: boolean;
   at: string;
 }
 
@@ -38,6 +41,9 @@ interface Pulse {
   legWeights: number[];
   color: string;
   start: number;
+  /** "replay" draws a dashed halo around the missile — a retry (manual or auto) looks
+   *  deliberately different from first-attempt traffic. */
+  replay: boolean;
 }
 
 const NODE_X_SOURCE = 85;
@@ -47,11 +53,13 @@ const NODE_X_TARGET = 855;
 const NODE_WIDTH_SOURCE = 140;
 const NODE_WIDTH_EVENT = 150;
 const NODE_WIDTH_TARGET = 170;
+const NODE_WIDTH_DLQ = 110;
 const NODE_HEIGHT = 40;
 const ROW_HEIGHT = 76;
 const TOP_MARGIN = 50;
 const PULSE_DURATION_MS = 950;
 const PULSE_RADIUS = 7;
+const DLQ_COLOR = "#7c2d12";
 
 function layout(count: number, x: number): Point[] {
   return Array.from({ length: Math.max(count, 1) }, (_, i) => ({ x, y: TOP_MARGIN + i * ROW_HEIGHT }));
@@ -95,11 +103,20 @@ export function LivePage() {
   const [simulator, setSimulator] = useState<SchedulerStatus | null>(null);
   const [simulatorBusy, setSimulatorBusy] = useState(false);
   const [simulatorError, setSimulatorError] = useState<string | null>(null);
+  const [deadCount, setDeadCount] = useState<number | null>(null);
   const loggedIn = isLoggedIn();
   const [renderedPulses, setRenderedPulses] = useState<(Pulse & { progress: number })[]>([]);
   const pulsesRef = useRef<Pulse[]>([]);
   const pulseId = useRef(0);
   const rafRef = useRef<number | null>(null);
+  // When the pulse for a given key last started flying — used to delay a causally-later pulse
+  // (a delivery following its ingress, a dlq drop following its delivery) until the earlier one
+  // has actually finished, so two related pulses never visibly fly at once. Keyed separately per
+  // stage transition since ingress->delivery and delivery->dlq have different "who's waiting on
+  // whom" relationships.
+  const lastIngressAt = useRef<Map<string, number>>(new Map());
+  const lastDeliveryAt = useRef<Map<string, number>>(new Map());
+  const summaryRefetchTimer = useRef<number | null>(null);
 
   useEffect(() => {
     // ACTIVE only — a deactivated Source/Target can't actually produce traffic (Subscriptions
@@ -113,7 +130,22 @@ export function LivePage() {
     get<Subscription[]>("/api/subscriptions")
       .then((all) => setSubscriptions(all.filter((s) => s.status === "ACTIVE")))
       .catch((e) => console.error("Failed to load subscriptions", e));
+    get<DeliverySummary>("/api/deliveries/summary")
+      .then((s) => setDeadCount(s.dead))
+      .catch((e) => console.error("Failed to load delivery summary", e));
   }, []);
+
+  // Re-fetch the DLQ count shortly after anything that could change it (a fresh dlq arrival, or
+  // a replay attempt resolving either way) — debounced so a burst of SSE events triggers one
+  // request, not one per event.
+  function scheduleDeadCountRefetch() {
+    if (summaryRefetchTimer.current !== null) window.clearTimeout(summaryRefetchTimer.current);
+    summaryRefetchTimer.current = window.setTimeout(() => {
+      get<DeliverySummary>("/api/deliveries/summary")
+        .then((s) => setDeadCount(s.dead))
+        .catch(() => {});
+    }, 600);
+  }
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -170,7 +202,11 @@ export function LivePage() {
 
   const rowCount = Math.max(sources.length, eventNodes.length, targets.length, 1);
   const hub: Point = useMemo(() => ({ x: HUB_X, y: TOP_MARGIN + ((rowCount - 1) * ROW_HEIGHT) / 2 }), [rowCount]);
-  const svgHeight = TOP_MARGIN * 2 + (rowCount - 1) * ROW_HEIGHT + 20;
+  // DLQ sits in its own row below every Source/Event/Target row, directly under the Hub — a
+  // dead-lettered delivery is RelayHub's own terminal state, not something that belongs under any
+  // particular Target's column.
+  const dlqPos: Point = useMemo(() => ({ x: HUB_X, y: TOP_MARGIN + rowCount * ROW_HEIGHT }), [rowCount]);
+  const svgHeight = TOP_MARGIN * 2 + rowCount * ROW_HEIGHT + 20;
 
   function tick() {
     const now = performance.now();
@@ -185,7 +221,7 @@ export function LivePage() {
     }
   }
 
-  function spawnPulse(waypoints: Point[], color: string) {
+  function spawnPulse(waypoints: Point[], color: string, replay = false) {
     // Random arc per leg (not always the same straight line) gives each "missile" its own flight
     // instead of a mechanical, identical repeat every time.
     const arcs = waypoints.slice(1).map(() => (Math.random() - 0.5) * 60);
@@ -197,7 +233,7 @@ export function LivePage() {
     const legWeights = lengths.map((len) => len / totalLength);
     pulsesRef.current = [
       ...pulsesRef.current,
-      { id: pulseId.current++, waypoints, arcs, legWeights, color, start: performance.now() },
+      { id: pulseId.current++, waypoints, arcs, legWeights, color, start: performance.now(), replay },
     ];
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(tick);
@@ -243,6 +279,15 @@ export function LivePage() {
     return pointOnLeg(p.waypoints[0], p.waypoints[1], p.arcs[0], 0);
   }
 
+  /** Delay (ms) before `key` is free, per `map`'s last-recorded "busy until" timestamp — 0 if
+   *  `key` isn't tracked yet or is already free. Every pulse occupies its key for exactly
+   *  PULSE_DURATION_MS regardless of how many legs it flies (leg weights only split *within*
+   *  that fixed budget), so "busy until" is simply spawn-time + PULSE_DURATION_MS. */
+  function readyDelay(map: Map<string, number>, key: string, now: number): number {
+    const busyUntil = map.get(key);
+    return busyUntil !== undefined ? Math.max(0, busyUntil - now) : 0;
+  }
+
   useEffect(() => {
     const source = new EventSource("/api/live/stream");
     source.onopen = () => setConnected(true);
@@ -253,24 +298,51 @@ export function LivePage() {
 
       const eventPos = event.eventKey ? eventPositions[eventNodeKey(event.sourceKey, event.eventKey)] : undefined;
       const color = event.status === "failed" ? "#d6293e" : event.status === "success" ? "#0f8b3f" : "#4f46e5";
+      const ingressKey = event.eventKey ? eventNodeKey(event.sourceKey, event.eventKey) : event.sourceKey;
+      const now = performance.now();
 
       if (event.stage === "ingress") {
         const from = sourcePositions[event.sourceKey];
         if (!from) return;
-        spawnPulse([from, eventPos ?? hub], color);
-      } else {
+        // Waits for a still-in-flight ingress on the same Source Event to land first, so two
+        // ingresses for the same event never visibly overlap.
+        const delay = readyDelay(lastIngressAt.current, ingressKey, now);
+        lastIngressAt.current.set(ingressKey, now + delay + PULSE_DURATION_MS);
+        const spawn = () => spawnPulse([from, eventPos ?? hub], color);
+        delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+      } else if (event.stage === "delivery") {
         const to = event.targetKey ? targetPositions[event.targetKey] : null;
         if (!to) return;
-        // Explicitly routed through the Hub node (not a direct Event->Target arc) so the flight
+        const deliveryKey = `${ingressKey}:${event.targetKey}`;
+        // Waits for its own ingress to actually land, and for any still-in-flight delivery to the
+        // same Target, before departing — so a delivery never visibly departs before the ingress
+        // that caused it has arrived.
+        const delay = Math.max(
+          readyDelay(lastIngressAt.current, ingressKey, now),
+          readyDelay(lastDeliveryAt.current, deliveryKey, now)
+        );
+        lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
+        // Routed explicitly through the Hub node (not a direct Event->Target arc) so the flight
         // visibly passes through RelayHub instead of appearing to skip over it.
-        spawnPulse([eventPos ?? hub, hub, to], color);
+        const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, event.replay);
+        delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        if (event.replay) scheduleDeadCountRefetch();
+      } else if (event.stage === "dlq") {
+        const deliveryKey = `${ingressKey}:${event.targetKey}`;
+        // Waits for the failed delivery attempt that caused this to actually land at its Target
+        // before departing for the DLQ.
+        const delay = readyDelay(lastDeliveryAt.current, deliveryKey, now);
+        lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
+        const spawn = () => spawnPulse([hub, dlqPos], DLQ_COLOR);
+        delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        scheduleDeadCountRefetch();
       }
     });
     return () => {
       source.close();
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [sourcePositions, eventPositions, targetPositions, hub]);
+  }, [sourcePositions, eventPositions, targetPositions, hub, dlqPos]);
 
   return (
     <div>
@@ -297,7 +369,8 @@ export function LivePage() {
       <p className="muted">
         Real-time Source &rarr; Source Event &rarr; RelayHub &rarr; Target traffic, pushed over SSE as it happens —
         no manual refresh. The Event column mirrors Subscriptions: one node per Source Event actually wired to a
-        Target.
+        Target. A delivery that exhausts its retries drops into the DLQ node below RelayHub; a background job
+        automatically retries the oldest DLQ items every 30s (retries carry a dashed halo).
         {loggedIn && (
           <>
             {" "}
@@ -412,6 +485,19 @@ export function LivePage() {
             RelayHub
           </text>
 
+          <line x1={hub.x} y1={hub.y + 24} x2={dlqPos.x} y2={dlqPos.y - NODE_HEIGHT / 2} className="topology-edge topology-edge-dlq" />
+          <rect
+            x={dlqPos.x - NODE_WIDTH_DLQ / 2}
+            y={dlqPos.y - NODE_HEIGHT / 2}
+            width={NODE_WIDTH_DLQ}
+            height={NODE_HEIGHT}
+            rx={8}
+            className="topology-node topology-node-dlq"
+          />
+          <text x={dlqPos.x} y={dlqPos.y + 5} textAnchor="middle" className="topology-label topology-label-dlq">
+            DLQ{deadCount !== null ? ` (${deadCount})` : ""}
+          </text>
+
           {renderedPulses.map((p) => {
             const { x, y, angleDeg } = pointOnPath(p, p.progress);
             const opacity = p.progress > 0.85 ? 1 - (p.progress - 0.85) / 0.15 : 1;
@@ -460,6 +546,9 @@ export function LivePage() {
                     />
                   ))}
                   <g className="topology-missile" style={{ color: p.color }} transform={`translate(${x} ${y}) rotate(${angleDeg})`}>
+                    {/* a retry (manual replay or DlqAutoReplayScheduler) gets a dashed halo, so it
+                        reads as deliberately different from first-attempt traffic */}
+                    {p.replay && <circle cx={0} cy={0} r={13} fill="none" stroke={p.color} strokeWidth={1.5} strokeDasharray="3 2" />}
                     {/* fins */}
                     <path d="M -5,-6 L -13,-10 L -9,-3 Z" fill={p.color} opacity={0.95} />
                     <path d="M -5,6 L -13,10 L -9,3 Z" fill={p.color} opacity={0.95} />
@@ -497,13 +586,22 @@ export function LivePage() {
         <tbody>
           {feed.map((e, i) => (
             <tr key={i}>
-              <td>{e.stage}</td>
+              <td>
+                {e.stage}
+                {e.replay && <span className="badge badge-warn badge-inline">replay</span>}
+              </td>
               <td>{e.sourceKey}</td>
               <td>{e.eventKey ?? "-"}</td>
               <td>{e.targetKey ?? "-"}</td>
               <td>
                 {e.status && (
-                  <span className={`badge ${e.status === "success" ? "badge-ok" : "badge-danger"}`}>{e.status}</span>
+                  <span
+                    className={`badge ${
+                      e.status === "success" ? "badge-ok" : e.status === "dead" ? "badge-muted" : "badge-danger"
+                    }`}
+                  >
+                    {e.status}
+                  </span>
                 )}
               </td>
               <td>{new Date(e.at).toLocaleTimeString()}</td>

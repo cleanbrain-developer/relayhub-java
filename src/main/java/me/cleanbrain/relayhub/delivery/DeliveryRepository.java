@@ -23,6 +23,10 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
     List<Delivery> findTop200ByStateOrderByUpdatedAtDesc(DeliveryState state);
 
+    /** Oldest-DEAD-first, bounded batch for DlqAutoReplayScheduler — oldest first so one
+     *  perpetually-broken Target can't starve the rest of the DLQ backlog of ever being retried. */
+    List<Delivery> findTop10ByStateOrderByUpdatedAtAsc(DeliveryState state);
+
     long countByState(DeliveryState state);
 
     /**
