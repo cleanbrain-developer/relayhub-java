@@ -35,6 +35,7 @@ export interface Target {
 
 export interface Subscription {
   id: string;
+  sourceKey: string;
   sourceEventKey: string;
   targetKey: string;
   name: string;

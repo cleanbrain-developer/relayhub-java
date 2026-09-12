@@ -180,7 +180,8 @@ public class DeliveryService {
         sample.stop(meterRegistry.timer("relayhub.delivery.attempt.duration", "status", success ? "success" : "failed"));
         meterRegistry.counter("relayhub.delivery.attempts", "status", success ? "success" : "failed").increment();
         liveActivityBroadcaster.broadcast(LiveEvent.delivery(
-                subscription.getSourceEvent().getSource().getKey(), subscription.getTarget().getKey(), success));
+                subscription.getSourceEvent().getSource().getKey(), subscription.getSourceEvent().getKey(),
+                subscription.getTarget().getKey(), success));
 
         deliveryAttemptRepository.save(attempt.build());
         delivery.setAttemptCount(attemptNumber);

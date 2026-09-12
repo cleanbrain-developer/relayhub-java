@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record SubscriptionResponse(
         UUID id,
+        String sourceKey,
         String sourceEventKey,
         String targetKey,
         String name,
@@ -21,6 +22,7 @@ public record SubscriptionResponse(
     public static SubscriptionResponse from(Subscription subscription) {
         return new SubscriptionResponse(
                 subscription.getId(),
+                subscription.getSourceEvent().getSource().getKey(),
                 subscription.getSourceEvent().getKey(),
                 subscription.getTarget().getKey(),
                 subscription.getName(),

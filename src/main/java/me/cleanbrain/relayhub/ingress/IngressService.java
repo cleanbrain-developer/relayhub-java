@@ -110,7 +110,7 @@ public class IngressService {
         }
 
         meterRegistry.counter("relayhub.ingress.events", "outcome", "created").increment();
-        liveActivityBroadcaster.broadcast(LiveEvent.ingress(sourceEvent.getSource().getKey()));
+        liveActivityBroadcaster.broadcast(LiveEvent.ingress(sourceEvent.getSource().getKey(), sourceEvent.getKey()));
         return new IngressResult(event, queuedCount, false);
     }
 

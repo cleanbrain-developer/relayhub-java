@@ -453,6 +453,11 @@ code {
   stroke: #0f8b3f;
 }
 
+.topology-node-event {
+  stroke: #b5680b;
+  stroke-dasharray: 4 2;
+}
+
 .topology-label {
   font-size: 12px;
   font-weight: 600;
@@ -471,8 +476,8 @@ code {
   pointer-events: none;
 }
 
-.topology-pulse {
-  filter: drop-shadow(0 0 6px currentColor);
+.topology-missile {
+  filter: drop-shadow(0 0 5px currentColor);
 }
 
 .mapping-builder {

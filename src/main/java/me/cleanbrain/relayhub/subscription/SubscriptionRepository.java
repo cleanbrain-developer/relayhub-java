@@ -26,16 +26,18 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     List<Subscription> findActiveWithTargetBySourceEventId(@Param("sourceEventId") UUID sourceEventId, @Param("status") Status status);
 
     /**
-     * Eagerly loads {@code sourceEvent} and {@code target} — {@code open-in-view: false} (see
-     * application.yml) means the plain {@code findAll()} would otherwise throw
-     * LazyInitializationException once the admin console's list endpoint (SubscriptionResponse.from,
-     * added in Spec 005) tries to read those associations outside the fetching transaction.
+     * Eagerly loads {@code sourceEvent}, {@code sourceEvent.source} and {@code target} — {@code
+     * open-in-view: false} (see application.yml) means the plain {@code findAll()} would otherwise
+     * throw LazyInitializationException once the admin console's list endpoint
+     * (SubscriptionResponse.from, added in Spec 005) tries to read those associations outside the
+     * fetching transaction. {@code sourceEvent.source} was added once SubscriptionResponse started
+     * exposing {@code sourceKey} (for the Live page's Source-&gt;Event topology, see live/LiveEvent.java).
      */
-    @Query("select s from Subscription s join fetch s.sourceEvent join fetch s.target")
+    @Query("select s from Subscription s join fetch s.sourceEvent se join fetch se.source join fetch s.target")
     List<Subscription> findAllWithDetails();
 
     /** Same eager-load reasoning as {@link #findAllWithDetails} — for the single-Subscription GET/PUT. */
-    @Query("select s from Subscription s join fetch s.sourceEvent join fetch s.target where s.id = :id")
+    @Query("select s from Subscription s join fetch s.sourceEvent se join fetch se.source join fetch s.target where s.id = :id")
     Optional<Subscription> findWithDetailsById(@Param("id") UUID id);
 
     // Hard-delete guards (any status, not just ACTIVE — an INACTIVE Subscription still holds a
