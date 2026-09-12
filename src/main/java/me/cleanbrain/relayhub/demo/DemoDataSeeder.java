@@ -1,6 +1,7 @@
 package me.cleanbrain.relayhub.demo;
 
 import lombok.RequiredArgsConstructor;
+import me.cleanbrain.relayhub.common.FieldDataType;
 import me.cleanbrain.relayhub.common.HttpVerb;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.source.SourceService;
@@ -8,10 +9,14 @@ import me.cleanbrain.relayhub.source.dto.SourceCreateRequest;
 import me.cleanbrain.relayhub.sourceevent.Operation;
 import me.cleanbrain.relayhub.sourceevent.SourceEventService;
 import me.cleanbrain.relayhub.sourceevent.dto.SourceEventCreateRequest;
+import me.cleanbrain.relayhub.sourcefield.SourceFieldService;
+import me.cleanbrain.relayhub.sourcefield.dto.SourceFieldCreateRequest;
 import me.cleanbrain.relayhub.subscription.SubscriptionService;
 import me.cleanbrain.relayhub.subscription.dto.SubscriptionCreateRequest;
 import me.cleanbrain.relayhub.target.TargetService;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
+import me.cleanbrain.relayhub.targetfield.TargetFieldService;
+import me.cleanbrain.relayhub.targetfield.dto.TargetFieldCreateRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -54,6 +59,8 @@ public class DemoDataSeeder implements CommandLineRunner {
     private final SourceEventService sourceEventService;
     private final TargetService targetService;
     private final SubscriptionService subscriptionService;
+    private final SourceFieldService sourceFieldService;
+    private final TargetFieldService targetFieldService;
 
     @Value("${relayhub.demo.simulator-base-url:http://localhost:9500}")
     private String simulatorBaseUrl;
@@ -74,6 +81,24 @@ public class DemoDataSeeder implements CommandLineRunner {
 
         seedTarget("demo-airport-display", "Demo Airport Display", "Always succeeds — see relayhub-demo-systems");
         seedTarget("demo-travelapp-vendor", "Demo Travel App Vendor", "Randomly fails/times out — see relayhub-demo-systems");
+
+        // Spec 006 field registry (specs/006-field-registry/spec.md) — seeded here for the same
+        // reason as everything else in this class: an operator opening the console for the first
+        // time should see a working example of the feature, not an empty "No fields registered
+        // yet." on every demo Source Event/Target (maintainer question 2026-09-12: "왜 필드매핑이
+        // 아무것도 없지?" — the feature worked, it was just genuinely empty until someone filled it
+        // in by hand, which this now does). Field shapes match relayhub-demo-systems' actual wire
+        // payload exactly (see its relayhubClient.ts: {eventId, flightNo, status, gate,
+        // delayMinutes}) and its two mapping templates below (AIRPORT_DISPLAY_TEMPLATE needs all
+        // four flight fields, TRAVELAPP_VENDOR_TEMPLATE only flightNo/status).
+        seedFlightSourceFields(FLIGHT_CREATED);
+        seedFlightSourceFields(FLIGHT_STATUS_UPDATED);
+        seedTargetField("demo-airport-display", "flightNo", FieldDataType.STRING, "Flight number", "KE101", true);
+        seedTargetField("demo-airport-display", "status", FieldDataType.STRING, "BOARDING/DELAYED/DEPARTED/CANCELLED", "BOARDING", true);
+        seedTargetField("demo-airport-display", "gate", FieldDataType.STRING, "Gate number", "23", true);
+        seedTargetField("demo-airport-display", "delayMinutes", FieldDataType.NUMBER, "Minutes delayed, 0 if on time", "0", true);
+        seedTargetField("demo-travelapp-vendor", "flightNo", FieldDataType.STRING, "Flight number", "KE101", true);
+        seedTargetField("demo-travelapp-vendor", "status", FieldDataType.STRING, "BOARDING/DELAYED/DEPARTED/CANCELLED", "BOARDING", true);
 
         seedSubscription(FLIGHT_CREATED, "demo-airport-display", "/targets/airport-display", AIRPORT_DISPLAY_TEMPLATE);
         seedSubscription(FLIGHT_CREATED, "demo-travelapp-vendor", "/targets/travelapp-vendor", TRAVELAPP_VENDOR_TEMPLATE);
@@ -109,6 +134,40 @@ public class DemoDataSeeder implements CommandLineRunner {
         } catch (NotFoundException e) {
             targetService.create(new TargetCreateRequest(key, name, description, simulatorBaseUrl, null));
             log.info("Seeded Target '{}'", key);
+        }
+    }
+
+    private void seedFlightSourceFields(String eventKey) {
+        seedSourceField(eventKey, "eventId", "$.eventId", FieldDataType.STRING,
+                "Simulator-generated idempotency key", "sim-1699999999-1", true);
+        seedSourceField(eventKey, "flightNo", "$.flightNo", FieldDataType.STRING,
+                "Flight number", "KE101", true);
+        seedSourceField(eventKey, "status", "$.status", FieldDataType.STRING,
+                "BOARDING/DELAYED/DEPARTED/CANCELLED", "BOARDING", true);
+        seedSourceField(eventKey, "gate", "$.gate", FieldDataType.STRING, "Gate number", "23", false);
+        seedSourceField(eventKey, "delayMinutes", "$.delayMinutes", FieldDataType.NUMBER,
+                "Minutes delayed, 0 if on time", "0", false);
+    }
+
+    private void seedSourceField(String eventKey, String fieldKey, String jsonPath, FieldDataType dataType,
+                                  String description, String exampleValue, boolean required) {
+        try {
+            sourceFieldService.getBySourceKeyAndEventKeyAndFieldKey(SOURCE_KEY, eventKey, fieldKey);
+        } catch (NotFoundException e) {
+            sourceFieldService.create(SOURCE_KEY, eventKey,
+                    new SourceFieldCreateRequest(fieldKey, jsonPath, dataType, description, exampleValue, required, false));
+            log.info("Seeded Source Field '{}/{}/{}'", SOURCE_KEY, eventKey, fieldKey);
+        }
+    }
+
+    private void seedTargetField(String targetKey, String fieldKey, FieldDataType dataType,
+                                  String description, String exampleValue, boolean required) {
+        try {
+            targetFieldService.getByTargetKeyAndFieldKey(targetKey, fieldKey);
+        } catch (NotFoundException e) {
+            targetFieldService.create(targetKey,
+                    new TargetFieldCreateRequest(fieldKey, dataType, description, exampleValue, required, false));
+            log.info("Seeded Target Field '{}/{}'", targetKey, fieldKey);
         }
     }
 
