@@ -141,7 +141,7 @@ export function SourcesPage() {
               <div className="entity-card-actions">
                 <StatusBadge value={s.status} />
                 <button onClick={() => setFieldsOpenKey(fieldsOpenKey === s.key ? null : s.key)}>
-                  {fieldsOpenKey === s.key ? "Hide fields" : "Fields"}
+                  {fieldsOpenKey === s.key ? "Hide field mapping" : "Field mapping"}
                 </button>
                 {loggedIn && (
                   <>

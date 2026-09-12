@@ -771,15 +771,29 @@ code {
   flex: 0 0 auto;
 }
 
+.field-registry-edit-form {
+  margin: 0.35rem 0;
+}
+
 .source-event-fields {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
-.source-event-row .link-button {
-  padding: 0.3rem 0;
+.source-event-row {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.source-event-row:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.source-event-row-header {
   font-weight: 600;
+  margin-bottom: 0.4rem;
 }
 
 .mapping-select {

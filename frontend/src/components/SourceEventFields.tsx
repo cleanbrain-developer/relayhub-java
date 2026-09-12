@@ -10,13 +10,14 @@ interface Props {
 
 /**
  * Lists a Source's registered events and, per event, its field registry (Spec 006 — see
- * FieldRegistryEditor). There's no Source Event creation UI yet (out of scope here — events are
- * registered via the API/demo seeder today), so this is read-only at the event level; only the
- * fields nested under each event are editable.
+ * FieldRegistryEditor) — always expanded, not behind a second collapse toggle, since burying the
+ * add/edit/delete form two clicks deep was exactly why the maintainer kept re-asking whether this
+ * feature existed at all (2026-09-12). There's no Source Event creation UI yet (out of scope here
+ * — events are registered via the API/demo seeder today), so the event list itself is read-only;
+ * only the fields nested under each event are editable.
  */
 export function SourceEventFields({ sourceKey, loggedIn }: Props) {
   const [events, setEvents] = useState<SourceEvent[]>([]);
-  const [openEventKey, setOpenEventKey] = useState<string | null>(null);
 
   useEffect(() => {
     get<SourceEvent[]>(`/api/sources/${sourceKey}/events`)
@@ -32,17 +33,15 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
     <div className="source-event-fields">
       {events.map((ev) => (
         <div key={ev.key} className="source-event-row">
-          <button type="button" className="link-button" onClick={() => setOpenEventKey(openEventKey === ev.key ? null : ev.key)}>
-            {openEventKey === ev.key ? "▾" : "▸"} <code>{ev.key}</code>
-            <span className="muted"> &middot; {ev.operation} &middot; fields</span>
-          </button>
-          {openEventKey === ev.key && (
-            <FieldRegistryEditor
-              basePath={`/api/sources/${sourceKey}/events/${ev.key}/fields`}
-              includeJsonPath
-              loggedIn={loggedIn}
-            />
-          )}
+          <div className="source-event-row-header">
+            <code>{ev.key}</code>
+            <span className="muted"> &middot; {ev.operation}</span>
+          </div>
+          <FieldRegistryEditor
+            basePath={`/api/sources/${sourceKey}/events/${ev.key}/fields`}
+            includeJsonPath
+            loggedIn={loggedIn}
+          />
         </div>
       ))}
     </div>

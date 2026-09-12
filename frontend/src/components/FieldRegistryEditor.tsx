@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { Fragment, FormEvent, useEffect, useState } from "react";
 import { del, get, post, put } from "../api";
 import { FieldDataType, Status } from "../types";
 
@@ -15,15 +15,37 @@ interface FieldRow {
   status: Status;
 }
 
-const emptyForm = {
+interface FieldFormState {
+  key: string;
+  jsonPath: string;
+  dataType: FieldDataType;
+  description: string;
+  exampleValue: string;
+  required: boolean;
+  sensitive: boolean;
+}
+
+const emptyForm: FieldFormState = {
   key: "",
   jsonPath: "",
-  dataType: "STRING" as FieldDataType,
+  dataType: "STRING",
   description: "",
   exampleValue: "",
   required: false,
   sensitive: false,
 };
+
+function toFormState(f: FieldRow): FieldFormState {
+  return {
+    key: f.key,
+    jsonPath: f.jsonPath ?? "",
+    dataType: f.dataType,
+    description: f.description ?? "",
+    exampleValue: f.exampleValue ?? "",
+    required: f.required,
+    sensitive: f.sensitive,
+  };
+}
 
 interface Props {
   /** e.g. `/api/sources/demo-flightstatus/events/flight-created/fields` or `/api/targets/demo-airport-display/fields` */
@@ -39,13 +61,20 @@ interface Props {
  * of requiring free-typed JSONPath/field-name text. Shared between SourcesPage (nested under each
  * Source Event) and TargetsPage (nested under each Target) — the only real difference between the
  * two is whether jsonPath is collected.
+ *
+ * Full add/edit/delete, not just add+delete: an earlier version only let the "required" checkbox
+ * be toggled inline, with no way to fix a typo'd jsonPath/description/exampleValue/dataType/
+ * sensitive flag short of deleting and recreating the field — the maintainer asked for this
+ * explicitly (2026-09-12) after noticing edit was incomplete.
  */
 export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Props) {
   const [fields, setFields] = useState<FieldRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<FieldFormState>(emptyForm);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<FieldFormState>(emptyForm);
 
   function reload() {
     get<FieldRow[]>(basePath).then(setFields).catch((err) => setError((err as Error).message));
@@ -57,8 +86,8 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
     e.preventDefault();
     setError(null);
     try {
-      const { jsonPath, ...rest } = form;
-      await post(basePath, includeJsonPath ? { jsonPath, ...rest } : rest);
+      const { key, jsonPath, ...rest } = form;
+      await post(basePath, includeJsonPath ? { key, jsonPath, ...rest } : { key, ...rest });
       setForm(emptyForm);
       setShowCreate(false);
       reload();
@@ -67,11 +96,21 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
     }
   }
 
-  async function toggleRequired(field: FieldRow, required: boolean) {
+  function startEdit(f: FieldRow) {
+    if (editingKey === f.key) {
+      setEditingKey(null);
+      return;
+    }
+    setEditingKey(f.key);
+    setEditForm(toFormState(f));
+  }
+
+  async function saveEdit(key: string) {
     setError(null);
     try {
-      const { key, status, ...rest } = field;
-      await put(`${basePath}/${field.key}`, { ...rest, required });
+      const { key: _key, jsonPath, ...rest } = editForm;
+      await put(`${basePath}/${key}`, includeJsonPath ? { jsonPath, ...rest } : rest);
+      setEditingKey(null);
       reload();
     } catch (err) {
       setError((err as Error).message);
@@ -102,6 +141,51 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
 
   const visible = fields.filter((f) => showInactive || f.status === "ACTIVE");
 
+  function renderFields(state: FieldFormState, setState: (s: FieldFormState) => void, keyEditable: boolean) {
+    return (
+      <>
+        <input
+          required
+          disabled={!keyEditable}
+          placeholder="key (e.g. customerNo)"
+          value={state.key}
+          onChange={(e) => setState({ ...state, key: e.target.value })}
+        />
+        {includeJsonPath && (
+          <input
+            required
+            placeholder="$.customerNo"
+            value={state.jsonPath}
+            onChange={(e) => setState({ ...state, jsonPath: e.target.value })}
+          />
+        )}
+        <select value={state.dataType} onChange={(e) => setState({ ...state, dataType: e.target.value as FieldDataType })}>
+          {DATA_TYPES.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
+        <input
+          placeholder="description (optional)"
+          value={state.description}
+          onChange={(e) => setState({ ...state, description: e.target.value })}
+        />
+        <input
+          placeholder="example value (optional)"
+          value={state.exampleValue}
+          onChange={(e) => setState({ ...state, exampleValue: e.target.value })}
+        />
+        <label className="inline-checkbox">
+          <input type="checkbox" checked={state.required} onChange={(e) => setState({ ...state, required: e.target.checked })} />
+          Required
+        </label>
+        <label className="inline-checkbox">
+          <input type="checkbox" checked={state.sensitive} onChange={(e) => setState({ ...state, sensitive: e.target.checked })} />
+          Sensitive
+        </label>
+      </>
+    );
+  }
+
   return (
     <div className="field-registry">
       {error && <p className="error">{error}</p>}
@@ -119,47 +203,7 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
 
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="field-registry-form">
-          <input
-            required
-            placeholder="key (e.g. customerNo)"
-            value={form.key}
-            onChange={(e) => setForm({ ...form, key: e.target.value })}
-          />
-          {includeJsonPath && (
-            <input
-              required
-              placeholder="$.customerNo"
-              value={form.jsonPath}
-              onChange={(e) => setForm({ ...form, jsonPath: e.target.value })}
-            />
-          )}
-          <select value={form.dataType} onChange={(e) => setForm({ ...form, dataType: e.target.value as FieldDataType })}>
-            {DATA_TYPES.map((t) => (
-              <option key={t}>{t}</option>
-            ))}
-          </select>
-          <input
-            placeholder="description (optional)"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          <input
-            placeholder="example value (optional)"
-            value={form.exampleValue}
-            onChange={(e) => setForm({ ...form, exampleValue: e.target.value })}
-          />
-          <label className="inline-checkbox">
-            <input type="checkbox" checked={form.required} onChange={(e) => setForm({ ...form, required: e.target.checked })} />
-            Required
-          </label>
-          <label className="inline-checkbox">
-            <input
-              type="checkbox"
-              checked={form.sensitive}
-              onChange={(e) => setForm({ ...form, sensitive: e.target.checked })}
-            />
-            Sensitive
-          </label>
+          {renderFields(form, setForm, true)}
           <button type="submit" className="btn-primary">
             Add
           </button>
@@ -186,39 +230,46 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
           </thead>
           <tbody>
             {visible.map((f) => (
-              <tr key={f.key}>
-                <td>
-                  <code>{f.key}</code>
-                </td>
-                {includeJsonPath && (
+              <Fragment key={f.key}>
+                <tr>
                   <td>
-                    <code>{f.jsonPath}</code>
+                    <code>{f.key}</code>
                   </td>
-                )}
-                <td>{f.dataType}</td>
-                <td className="muted">{f.exampleValue ?? "-"}</td>
-                <td>
-                  {loggedIn ? (
-                    <input type="checkbox" checked={f.required} onChange={(e) => toggleRequired(f, e.target.checked)} />
-                  ) : f.required ? (
-                    "yes"
-                  ) : (
-                    "no"
+                  {includeJsonPath && (
+                    <td>
+                      <code>{f.jsonPath}</code>
+                    </td>
                   )}
-                </td>
-                <td>{f.sensitive ? "yes" : "no"}</td>
-                <td>
-                  <span className={`badge ${f.status === "ACTIVE" ? "badge-ok" : "badge-muted"}`}>{f.status}</span>
-                </td>
-                {loggedIn && (
+                  <td>{f.dataType}</td>
+                  <td className="muted">{f.exampleValue ?? "-"}</td>
+                  <td>{f.required ? "yes" : "no"}</td>
+                  <td>{f.sensitive ? "yes" : "no"}</td>
                   <td>
-                    {f.status === "ACTIVE" && <button onClick={() => deactivate(f.key)}>Deactivate</button>}
-                    <button className="btn-danger" onClick={() => hardDelete(f.key)}>
-                      Delete
-                    </button>
+                    <span className={`badge ${f.status === "ACTIVE" ? "badge-ok" : "badge-muted"}`}>{f.status}</span>
                   </td>
+                  {loggedIn && (
+                    <td>
+                      <button onClick={() => startEdit(f)}>{editingKey === f.key ? "Close" : "Edit"}</button>
+                      {f.status === "ACTIVE" && <button onClick={() => deactivate(f.key)}>Deactivate</button>}
+                      <button className="btn-danger" onClick={() => hardDelete(f.key)}>
+                        Delete
+                      </button>
+                    </td>
+                  )}
+                </tr>
+                {editingKey === f.key && (
+                  <tr>
+                    <td colSpan={(includeJsonPath ? 7 : 6) + (loggedIn ? 1 : 0)}>
+                      <div className="field-registry-form field-registry-edit-form">
+                        {renderFields(editForm, setEditForm, false)}
+                        <button type="button" className="btn-primary" onClick={() => saveEdit(f.key)}>
+                          Save
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 )}
-              </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>
