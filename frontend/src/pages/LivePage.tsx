@@ -58,20 +58,29 @@ const NODE_HEIGHT = 40;
 const ROW_HEIGHT = 76;
 const TOP_MARGIN = 50;
 const PULSE_DURATION_MS = 950;
-const PULSE_RADIUS = 7;
+const PULSE_RADIUS = 10;
+// Scales every local coordinate in the missile's SVG shape (fins/body/nose/window) — bumped up
+// from the original 1x so the missile reads clearly even on a busy topology (maintainer feedback
+// 2026-09-12: "더 화려해도 돼", asking for a bigger, showier Live page across the board).
+const MISSILE_SCALE = 1.6;
 const COLOR_INGRESS = "#4f46e5";
 const COLOR_SUCCESS = "#0f8b3f";
 const COLOR_FAILED = "#d6293e";
 const DLQ_COLOR = "#7c2d12";
+/** Warm gradient for the flame trail, brightest near the nozzle fading toward the pulse's own
+ *  status color further back — more stops than a minimal trail needs, deliberately, for a fuller
+ *  "flame" read instead of a handful of sparse dots. */
+const TRAIL_COLORS = ["#fff3b0", "#ffd166", "#ffb703", "#ff8c42"];
+const TRAIL_OFFSETS = [0.045, 0.09, 0.14, 0.19, 0.25, 0.32];
 
 /** How showy each pulse's impact explosion is — DLQ landings and failures get the biggest "boom",
  *  a plain ingress arrival barely more than a puff. `colors` cycle across the radiating particles
  *  for a bit of sparkle instead of a monochrome burst. */
 const EXPLOSION_PRESETS: Record<"ingress" | "success" | "failed" | "dlq", { count: number; distance: number; ring: number; colors: string[] }> = {
-  ingress: { count: 4, distance: 12, ring: 12, colors: [COLOR_INGRESS] },
-  success: { count: 7, distance: 22, ring: 20, colors: [COLOR_SUCCESS, "#ffd166"] },
-  failed: { count: 10, distance: 32, ring: 34, colors: [COLOR_FAILED, "#ff8c42"] },
-  dlq: { count: 13, distance: 38, ring: 42, colors: [DLQ_COLOR, "#8a8a8a", "#ff8c42"] },
+  ingress: { count: 6, distance: 18, ring: 16, colors: [COLOR_INGRESS, "#a5b4fc"] },
+  success: { count: 10, distance: 32, ring: 28, colors: [COLOR_SUCCESS, "#ffd166", "#6ee7b7"] },
+  failed: { count: 14, distance: 46, ring: 48, colors: [COLOR_FAILED, "#ff8c42", "#ffd166"] },
+  dlq: { count: 18, distance: 56, ring: 60, colors: [DLQ_COLOR, "#8a8a8a", "#ff8c42", "#c2410c"] },
 };
 
 function explosionKind(color: string): keyof typeof EXPLOSION_PRESETS {
@@ -561,56 +570,74 @@ export function LivePage() {
           {renderedPulses.map((p) => {
             const { x, y, angleDeg } = pointOnPath(p, p.progress);
             const opacity = p.progress > 0.85 ? 1 - (p.progress - 0.85) / 0.15 : 1;
-            // A short flame trail (warm colors near the nozzle, fading into the pulse's own
-            // status color further back) reads as thrust far more convincingly than a plain dot.
-            const trail = [0.06, 0.12, 0.19, 0.27].map((back) => pointOnPath(p, Math.max(p.progress - back, 0)));
-            // A launch puff at t=0 and an impact burst at t=1 — the two "cute" flourishes that
-            // turn a moving dot into something that reads as a tiny missile taking off/landing.
+            // A long, multi-stop flame trail (bright near the nozzle, cooling through orange into
+            // the pulse's own status color further back) reads as real thrust, not a handful of
+            // sparse dots.
+            const trail = TRAIL_OFFSETS.map((back) => pointOnPath(p, Math.max(p.progress - back, 0)));
+            // A launch puff at t=0 and an impact burst at t=1 — the two flourishes that turn a
+            // moving dot into something that reads as a tiny missile taking off/landing.
             const launchT = Math.min(p.progress / 0.18, 1);
-            const impactT = p.progress > 0.82 ? (p.progress - 0.82) / 0.18 : 0;
+            const impactT = p.progress > 0.8 ? (p.progress - 0.8) / 0.2 : 0;
             const start = p.waypoints[0];
             const end = p.waypoints[p.waypoints.length - 1];
             const explosion = EXPLOSION_PRESETS[explosionKind(p.color)];
+            const s = MISSILE_SCALE;
             return (
               <g key={p.id}>
                 {launchT < 1 && (
-                  <circle
-                    cx={start.x}
-                    cy={start.y}
-                    r={3 + launchT * 16}
-                    fill="none"
-                    stroke={p.color}
-                    strokeWidth={2}
-                    opacity={(1 - launchT) * 0.6}
-                  />
-                )}
-                {impactT > 0 && (
-                  <g>
-                    {/* shockwave ring */}
+                  <>
                     <circle
-                      cx={end.x}
-                      cy={end.y}
-                      r={4 + impactT * explosion.ring}
+                      cx={start.x}
+                      cy={start.y}
+                      r={4 + launchT * 22}
                       fill="none"
                       stroke={p.color}
                       strokeWidth={2.5}
-                      opacity={(1 - impactT) * 0.8}
+                      opacity={(1 - launchT) * 0.65}
+                    />
+                    <circle cx={start.x} cy={start.y} r={Math.max(0, 10 - launchT * 10)} fill="#fff" opacity={(1 - launchT) * 0.6} />
+                  </>
+                )}
+                {impactT > 0 && (
+                  <g>
+                    {/* two staggered shockwave rings, the outer trailing the inner — a "double
+                        boom" instead of one clean circle */}
+                    <circle
+                      cx={end.x}
+                      cy={end.y}
+                      r={5 + impactT * explosion.ring}
+                      fill="none"
+                      stroke={p.color}
+                      strokeWidth={3}
+                      opacity={(1 - impactT) * 0.85}
+                    />
+                    <circle
+                      cx={end.x}
+                      cy={end.y}
+                      r={Math.max(0, 5 + (impactT - 0.2) * explosion.ring * 0.75)}
+                      fill="none"
+                      stroke={explosion.colors[explosion.colors.length - 1]}
+                      strokeWidth={2}
+                      opacity={Math.max(0, (1 - impactT) * 0.6 - 0.1)}
                     />
                     {/* bright flash at the moment of impact */}
-                    <circle cx={end.x} cy={end.y} r={Math.max(0, 9 - impactT * 9)} fill="#fff" opacity={(1 - impactT) * 0.85} />
+                    <circle cx={end.x} cy={end.y} r={Math.max(0, 14 - impactT * 14)} fill="#fff" opacity={(1 - impactT) * 0.9} />
                     {/* radiating "펑펑" debris — count/reach/palette scale up from a plain ingress
-                        arrival through a DLQ drop, the most dramatic landing of the three */}
+                        arrival through a DLQ drop, the most dramatic landing of the three. Sizes
+                        alternate big "chunks" and small "sparks" instead of uniform dots. */}
                     {Array.from({ length: explosion.count }).map((_, i) => {
                       const angle = (i / explosion.count) * Math.PI * 2 + p.id * 0.37;
-                      const dist = impactT * explosion.distance;
+                      const jitter = ((p.id * 13 + i * 7) % 10) / 10;
+                      const dist = impactT * explosion.distance * (0.7 + jitter * 0.5);
                       const px = end.x + Math.cos(angle) * dist;
                       const py = end.y + Math.sin(angle) * dist;
+                      const chunk = i % 3 === 0;
                       return (
                         <circle
                           key={i}
                           cx={px}
                           cy={py}
-                          r={Math.max(0, 2.6 * (1 - impactT))}
+                          r={Math.max(0, (chunk ? 4.2 : 2.4) * (1 - impactT))}
                           fill={explosion.colors[i % explosion.colors.length]}
                           opacity={1 - impactT}
                         />
@@ -624,24 +651,35 @@ export function LivePage() {
                       key={i}
                       cx={t.x}
                       cy={t.y}
-                      r={PULSE_RADIUS * (0.65 - i * 0.13)}
-                      fill={i < 2 ? "#ffb703" : p.color}
-                      opacity={0.5 - i * 0.1}
+                      r={PULSE_RADIUS * (0.78 - i * 0.1)}
+                      fill={i < TRAIL_COLORS.length ? TRAIL_COLORS[i] : p.color}
+                      opacity={0.6 - i * 0.08}
                     />
                   ))}
                   <g className="topology-missile" style={{ color: p.color }} transform={`translate(${x} ${y}) rotate(${angleDeg})`}>
                     {/* a retry (manual replay or DlqAutoReplayScheduler) gets a dashed halo, so it
                         reads as deliberately different from first-attempt traffic */}
-                    {p.replay && <circle cx={0} cy={0} r={13} fill="none" stroke={p.color} strokeWidth={1.5} strokeDasharray="3 2" />}
+                    {p.replay && (
+                      <circle cx={0} cy={0} r={13 * s} fill="none" stroke={p.color} strokeWidth={1.5} strokeDasharray="3 2" />
+                    )}
                     {/* fins */}
-                    <path d="M -5,-6 L -13,-10 L -9,-3 Z" fill={p.color} opacity={0.95} />
-                    <path d="M -5,6 L -13,10 L -9,3 Z" fill={p.color} opacity={0.95} />
-                    {/* body */}
-                    <ellipse cx={0} cy={0} rx={10} ry={5.5} fill={p.color} />
+                    <path
+                      d={`M ${-5 * s},${-6 * s} L ${-13 * s},${-10 * s} L ${-9 * s},${-3 * s} Z`}
+                      fill={p.color}
+                      opacity={0.95}
+                    />
+                    <path
+                      d={`M ${-5 * s},${6 * s} L ${-13 * s},${10 * s} L ${-9 * s},${3 * s} Z`}
+                      fill={p.color}
+                      opacity={0.95}
+                    />
+                    {/* body, with a lighter highlight stripe for a bit of shading */}
+                    <ellipse cx={0} cy={0} rx={10 * s} ry={5.5 * s} fill={p.color} />
+                    <ellipse cx={-1 * s} cy={-1.6 * s} rx={7 * s} ry={1.6 * s} fill="#fff" opacity={0.25} />
                     {/* nose cone */}
-                    <path d="M 8,-4.5 L 15,0 L 8,4.5 Z" fill={p.color} />
+                    <path d={`M ${8 * s},${-4.5 * s} L ${15 * s},0 L ${8 * s},${4.5 * s} Z`} fill={p.color} />
                     {/* window */}
-                    <circle cx={1.5} cy={0} r={2.2} fill="#fff" opacity={0.9} />
+                    <circle cx={1.5 * s} cy={0} r={2.2 * s} fill="#fff" opacity={0.9} />
                   </g>
                 </g>
               </g>
