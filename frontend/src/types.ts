@@ -94,9 +94,14 @@ export interface Delivery {
 
 export interface DeliveryAttempt {
   id: string;
+  deliveryId: string;
   attemptNumber: number;
   status: DeliveryStatus;
+  requestMethod: string | null;
+  requestUrl: string | null;
+  requestBody: string | null;
   httpStatus: number | null;
+  responseBody: string | null;
   errorMessage: string | null;
   attemptedAt: string;
 }

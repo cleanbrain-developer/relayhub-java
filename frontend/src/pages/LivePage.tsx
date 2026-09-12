@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { get, getAuthed, post } from "../api";
 import { isLoggedIn } from "../auth";
-import { DeliverySummary, Source, Subscription, Target } from "../types";
+import { DeliveryAttempt, DeliverySummary, Source, Subscription, Target } from "../types";
+import { AttemptDetail } from "../components/AttemptDetail";
 
 interface LiveEvent {
   stage: "ingress" | "delivery" | "dlq";
@@ -12,6 +13,9 @@ interface LiveEvent {
   /** True when this "delivery" traversal came from DeliveryService.replay (the manual Replay
    *  button, or DlqAutoReplayScheduler) rather than the original delivery attempt. */
   replay: boolean;
+  /** Only set for "delivery" — the real DeliveryAttempt id, so a feed row can be clicked through
+   *  to the same request/response detail view the Deliveries page shows. */
+  attemptId: string | null;
   at: string;
 }
 
@@ -144,6 +148,9 @@ export function LivePage() {
   const [deadCount, setDeadCount] = useState<number | null>(null);
   const [dlqNextRunAt, setDlqNextRunAt] = useState<number | null>(null);
   const [dlqSecondsLeft, setDlqSecondsLeft] = useState<number | null>(null);
+  const [detailAttemptId, setDetailAttemptId] = useState<string | null>(null);
+  const [detailAttempt, setDetailAttempt] = useState<DeliveryAttempt | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const [renderedPulses, setRenderedPulses] = useState<(Pulse & { progress: number })[]>([]);
   const pulsesRef = useRef<Pulse[]>([]);
@@ -278,6 +285,19 @@ export function LivePage() {
     } finally {
       setSimulatorBusy(false);
     }
+  }
+
+  function toggleDetail(attemptId: string) {
+    if (detailAttemptId === attemptId) {
+      setDetailAttemptId(null);
+      return;
+    }
+    setDetailAttemptId(attemptId);
+    setDetailAttempt(null);
+    setDetailError(null);
+    get<DeliveryAttempt>(`/api/delivery-attempts/${attemptId}`)
+      .then(setDetailAttempt)
+      .catch((e) => setDetailError((e as Error).message));
   }
 
   const sourcePositions = useMemo(() => {
@@ -821,35 +841,53 @@ export function LivePage() {
             <th>Target</th>
             <th>Status</th>
             <th>At</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {feed.map((e, i) => (
-            <tr key={i}>
-              <td>
-                {e.stage}
-                {e.replay && <span className="badge badge-warn badge-inline">replay</span>}
-              </td>
-              <td>{e.sourceKey}</td>
-              <td>{e.eventKey ?? "-"}</td>
-              <td>{e.targetKey ?? "-"}</td>
-              <td>
-                {e.status && (
-                  <span
-                    className={`badge ${
-                      e.status === "success" ? "badge-ok" : e.status === "dead" ? "badge-muted" : "badge-danger"
-                    }`}
-                  >
-                    {e.status}
-                  </span>
-                )}
-              </td>
-              <td>{new Date(e.at).toLocaleTimeString()}</td>
-            </tr>
+            <Fragment key={i}>
+              <tr>
+                <td>
+                  {e.stage}
+                  {e.replay && <span className="badge badge-warn badge-inline">replay</span>}
+                </td>
+                <td>{e.sourceKey}</td>
+                <td>{e.eventKey ?? "-"}</td>
+                <td>{e.targetKey ?? "-"}</td>
+                <td>
+                  {e.status && (
+                    <span
+                      className={`badge ${
+                        e.status === "success" ? "badge-ok" : e.status === "dead" ? "badge-muted" : "badge-danger"
+                      }`}
+                    >
+                      {e.status}
+                    </span>
+                  )}
+                </td>
+                <td>{new Date(e.at).toLocaleTimeString()}</td>
+                <td>
+                  {e.attemptId && (
+                    <button onClick={() => toggleDetail(e.attemptId!)}>
+                      {detailAttemptId === e.attemptId ? "Hide" : "Request/Response"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+              {detailAttemptId === e.attemptId && e.attemptId && (
+                <tr>
+                  <td colSpan={7}>
+                    {detailError && <p className="error">{detailError}</p>}
+                    {detailAttempt ? <AttemptDetail attempt={detailAttempt} /> : !detailError && <p className="muted">Loading...</p>}
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
           {feed.length === 0 && (
             <tr>
-              <td colSpan={6} className="muted">
+              <td colSpan={7} className="muted">
                 Waiting for activity...
               </td>
             </tr>

@@ -49,6 +49,15 @@ public class DeliveryAttempt {
     @Column(nullable = false)
     private DeliveryStatus status;
 
+    /** What was actually sent to the Target — captured so an operator can see the real request,
+     *  not only its outcome (2026-09-13, admin console follow-up). */
+    private String requestMethod;
+
+    private String requestUrl;
+
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    private String requestBody;
+
     private Integer httpStatus;
 
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)

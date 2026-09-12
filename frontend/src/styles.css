@@ -220,6 +220,40 @@ tbody tr:hover {
   background: var(--accent-soft) !important;
 }
 
+.attempt-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.attempt-detail-section {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.attempt-detail-section h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.attempt-detail pre {
+  margin: 0.3rem 0 0;
+  padding: 0.65rem 0.8rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow: auto;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);

@@ -4,6 +4,7 @@ import { get, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Delivery, DeliveryAttempt, DeliveryState, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { AttemptDetail } from "../components/AttemptDetail";
 
 const STATES: (DeliveryState | "ALL")[] = ["ALL", "PENDING", "SUCCEEDED", "DEAD"];
 
@@ -15,6 +16,7 @@ export function DeliveriesPage() {
   const [targets, setTargets] = useState<Target[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(highlight);
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
+  const [detailAttemptId, setDetailAttemptId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
 
@@ -49,6 +51,11 @@ export function DeliveriesPage() {
 
   function toggle(id: string) {
     setExpandedId(expandedId === id ? null : id);
+    setDetailAttemptId(null);
+  }
+
+  function toggleDetail(attemptId: string) {
+    setDetailAttemptId(detailAttemptId === attemptId ? null : attemptId);
   }
 
   async function replay(id: string) {
@@ -126,19 +133,34 @@ export function DeliveriesPage() {
                             <th>HTTP</th>
                             <th>Error (from {targetKey})</th>
                             <th>At</th>
+                            <th></th>
                           </tr>
                         </thead>
                         <tbody>
                           {attempts.map((a) => (
-                            <tr key={a.id}>
-                              <td>{a.attemptNumber}</td>
-                              <td>
-                                <StatusBadge value={a.status} />
-                              </td>
-                              <td>{a.httpStatus ?? "-"}</td>
-                              <td>{a.errorMessage ?? "-"}</td>
-                              <td>{new Date(a.attemptedAt).toLocaleString()}</td>
-                            </tr>
+                            <Fragment key={a.id}>
+                              <tr>
+                                <td>{a.attemptNumber}</td>
+                                <td>
+                                  <StatusBadge value={a.status} />
+                                </td>
+                                <td>{a.httpStatus ?? "-"}</td>
+                                <td>{a.errorMessage ?? "-"}</td>
+                                <td>{new Date(a.attemptedAt).toLocaleString()}</td>
+                                <td>
+                                  <button onClick={() => toggleDetail(a.id)}>
+                                    {detailAttemptId === a.id ? "Hide" : "Request/Response"}
+                                  </button>
+                                </td>
+                              </tr>
+                              {detailAttemptId === a.id && (
+                                <tr>
+                                  <td colSpan={6}>
+                                    <AttemptDetail attempt={a} />
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           ))}
                         </tbody>
                       </table>

@@ -162,13 +162,17 @@ public class DeliveryService {
     private boolean attemptOnce(Delivery delivery, Subscription subscription, JsonNode sourcePayload, int attemptNumber, boolean isReplay) {
         JsonNode targetPayload = mappingService.map(sourcePayload, subscription.getTargetPayloadTemplate());
         String url = subscription.getTarget().getBaseUrl() + subscription.getTargetPath();
+        String requestBody = targetPayload.toString();
 
         DeliveryAttempt.DeliveryAttemptBuilder attempt = DeliveryAttempt.builder()
                 .deliveryId(delivery.getId())
                 .eventId(delivery.getEventId())
                 .subscriptionId(delivery.getSubscriptionId())
                 .targetId(delivery.getTargetId())
-                .attemptNumber(attemptNumber);
+                .attemptNumber(attemptNumber)
+                .requestMethod(subscription.getTargetMethod().name())
+                .requestUrl(url)
+                .requestBody(truncate(requestBody));
 
         boolean success;
         Timer.Sample sample = Timer.start(meterRegistry);
@@ -199,11 +203,16 @@ public class DeliveryService {
         }
         sample.stop(meterRegistry.timer("relayhub.delivery.attempt.duration", "status", success ? "success" : "failed"));
         meterRegistry.counter("relayhub.delivery.attempts", "status", success ? "success" : "failed").increment();
+
+        // Saved before broadcasting (not after) so the attempt already has its real id — the Live
+        // page's recent-activity feed carries that id so a click there can look up this exact
+        // attempt's full request/response via GET /api/delivery-attempts/{id}, the same detail
+        // view the Deliveries page uses.
+        DeliveryAttempt savedAttempt = deliveryAttemptRepository.save(attempt.build());
         liveActivityBroadcaster.broadcast(LiveEvent.delivery(
                 subscription.getSourceEvent().getSource().getKey(), subscription.getSourceEvent().getKey(),
-                subscription.getTarget().getKey(), success, isReplay));
+                subscription.getTarget().getKey(), success, isReplay, savedAttempt.getId()));
 
-        deliveryAttemptRepository.save(attempt.build());
         delivery.setAttemptCount(attemptNumber);
         return success;
     }
