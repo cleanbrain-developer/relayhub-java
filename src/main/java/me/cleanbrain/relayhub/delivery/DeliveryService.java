@@ -121,8 +121,16 @@ public class DeliveryService {
     /**
      * Re-attempts a DEAD delivery once. Two callers: the admin console's manual Replay button
      * (DeliveryController), and DlqAutoReplayScheduler's periodic sweep — both go through this
-     * same method, so both get the same idempotency/state guard and the same "delivery" +
-     * (on renewed failure) "dlq" live-activity broadcasts.
+     * same method, so both get the same idempotency/state guard and the same "delivery"
+     * live-activity broadcast.
+     *
+     * <p>Deliberately does NOT re-broadcast "dlq" when the replay fails again: the delivery was
+     * already DEAD (that's the precondition above) and stays DEAD — nothing was newly added to
+     * the DLQ, so a second "dlq" pulse here would fly to the DLQ node without the count actually
+     * changing. An earlier version broadcast it unconditionally on every renewed failure, which is
+     * exactly what looked like the count "randomly" going up or down relative to the missile
+     * animation (maintainer feedback 2026-09-12) — "dlq" now only ever fires from deliver()'s
+     * retry-exhaustion path, the one true DEAD-count increment.
      */
     @Transactional
     public Delivery replay(java.util.UUID deliveryId) {
@@ -142,9 +150,6 @@ public class DeliveryService {
         boolean success = attemptOnce(delivery, subscription, sourcePayload, delivery.getAttemptCount() + 1, true);
         delivery.setState(success ? DeliveryState.SUCCEEDED : DeliveryState.DEAD);
         meterRegistry.counter("relayhub.delivery.replay", "outcome", success ? "succeeded" : "dead").increment();
-        if (!success) {
-            broadcastDlq(subscription);
-        }
         return deliveryRepository.save(delivery);
     }
 

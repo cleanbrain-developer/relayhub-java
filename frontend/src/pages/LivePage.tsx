@@ -124,6 +124,8 @@ export function LivePage() {
   const [simulatorBusy, setSimulatorBusy] = useState(false);
   const [simulatorError, setSimulatorError] = useState<string | null>(null);
   const [deadCount, setDeadCount] = useState<number | null>(null);
+  const [dlqNextRunAt, setDlqNextRunAt] = useState<number | null>(null);
+  const [dlqSecondsLeft, setDlqSecondsLeft] = useState<number | null>(null);
   const loggedIn = isLoggedIn();
   const [renderedPulses, setRenderedPulses] = useState<(Pulse & { progress: number })[]>([]);
   const pulsesRef = useRef<Pulse[]>([]);
@@ -153,19 +155,50 @@ export function LivePage() {
     get<DeliverySummary>("/api/deliveries/summary")
       .then((s) => setDeadCount(s.dead))
       .catch((e) => console.error("Failed to load delivery summary", e));
+    fetchDlqSchedule();
   }, []);
 
-  // Re-fetch the DLQ count shortly after anything that could change it (a fresh dlq arrival, or
-  // a replay attempt resolving either way) — debounced so a burst of SSE events triggers one
-  // request, not one per event.
-  function scheduleDeadCountRefetch() {
+  function fetchDlqSchedule() {
+    get<{ intervalMs: number; lastRunAt: string; nextRunAt: string }>("/api/dlq/schedule")
+      .then((s) => setDlqNextRunAt(new Date(s.nextRunAt).getTime()))
+      .catch((e) => console.error("Failed to load DLQ schedule", e));
+  }
+
+  // Re-fetch the DLQ count and next-sweep time shortly after anything that could change them (a
+  // fresh dlq arrival, or a replay that just succeeded and left the queue) — debounced so a burst
+  // of SSE events triggers one request pair, not one per event. Deliberately NOT called for a
+  // replay that fails again: the delivery was already DEAD and stays DEAD, so nothing changed
+  // (see DeliveryService.replay's Javadoc for the bug this used to cause).
+  function scheduleDlqRefetch() {
     if (summaryRefetchTimer.current !== null) window.clearTimeout(summaryRefetchTimer.current);
     summaryRefetchTimer.current = window.setTimeout(() => {
       get<DeliverySummary>("/api/deliveries/summary")
         .then((s) => setDeadCount(s.dead))
         .catch(() => {});
+      fetchDlqSchedule();
     }, 600);
   }
+
+  // Ticks the visible countdown every second from dlqNextRunAt (server-authoritative, refreshed
+  // above and once more shortly after each countdown hits zero — see below — so client/server
+  // clock drift never accumulates across cycles). A ref (not state) tracks whether the
+  // post-zero resync is already scheduled, so a fast-ticking interval doesn't queue it repeatedly.
+  const resyncScheduledRef = useRef(false);
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      if (dlqNextRunAt === null) return;
+      const secondsLeft = Math.max(0, Math.ceil((dlqNextRunAt - Date.now()) / 1000));
+      setDlqSecondsLeft(secondsLeft);
+      if (secondsLeft === 0 && !resyncScheduledRef.current) {
+        resyncScheduledRef.current = true;
+        window.setTimeout(() => {
+          fetchDlqSchedule();
+          resyncScheduledRef.current = false;
+        }, 1200);
+      }
+    }, 1000);
+    return () => window.clearInterval(tick);
+  }, [dlqNextRunAt]);
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -346,7 +379,9 @@ export function LivePage() {
         // visibly passes through RelayHub instead of appearing to skip over it.
         const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, event.replay);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
-        if (event.replay) scheduleDeadCountRefetch();
+        // Only a replay that *succeeded* actually changed the DLQ count (it just left the
+        // queue) — a replay that failed again was already DEAD and stays DEAD.
+        if (event.replay && event.status === "success") scheduleDlqRefetch();
       } else if (event.stage === "dlq") {
         const deliveryKey = `${ingressKey}:${event.targetKey}`;
         // Waits for the failed delivery attempt that caused this to actually land at its Target
@@ -355,7 +390,7 @@ export function LivePage() {
         lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
         const spawn = () => spawnPulse([hub, dlqPos], DLQ_COLOR);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
-        scheduleDeadCountRefetch();
+        scheduleDlqRefetch();
       }
     });
     return () => {
@@ -517,6 +552,11 @@ export function LivePage() {
           <text x={dlqPos.x} y={dlqPos.y + 5} textAnchor="middle" className="topology-label topology-label-dlq">
             DLQ{deadCount !== null ? ` (${deadCount})` : ""}
           </text>
+          {dlqSecondsLeft !== null && (
+            <text x={dlqPos.x} y={dlqPos.y + NODE_HEIGHT / 2 + 16} textAnchor="middle" className="topology-label-dlq-timer">
+              auto-replay in {dlqSecondsLeft}s
+            </text>
+          )}
 
           {renderedPulses.map((p) => {
             const { x, y, angleDeg } = pointOnPath(p, p.progress);

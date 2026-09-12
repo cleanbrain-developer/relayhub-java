@@ -3,9 +3,11 @@ package me.cleanbrain.relayhub.delivery;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -19,8 +21,13 @@ import java.util.List;
  * and a 30s default interval (relayhub.dlq.auto-replay-interval-ms) so a large or persistently
  * failing backlog can't turn this into a tight retry storm against an already-struggling Target.
  * Each delivery goes through the exact same DeliveryService.replay used by the manual Replay
- * button, so it gets the same one-attempt-per-call semantics and the same live-activity
- * broadcasts (a "delivery" pulse for the attempt, plus a "dlq" pulse again if it's still failing).
+ * button, so it gets the same one-attempt-per-call semantics and the same "delivery" live-activity
+ * broadcast.
+ *
+ * <p>{@code lastRunAt} is updated at the very top of every tick — regardless of whether the DLQ
+ * had anything to replay — so DlqScheduleController's countdown stays accurate even when the
+ * queue is empty. Exposed (not just internal) because the maintainer asked for the console to
+ * show a literal countdown to the next sweep, not just its eventual effects.
  */
 @Component
 @RequiredArgsConstructor
@@ -31,8 +38,14 @@ public class DlqAutoReplayScheduler {
     private final DeliveryRepository deliveryRepository;
     private final DeliveryService deliveryService;
 
+    @Value("${relayhub.dlq.auto-replay-interval-ms:30000}")
+    private long intervalMs;
+
+    private volatile Instant lastRunAt = Instant.now();
+
     @Scheduled(fixedDelayString = "${relayhub.dlq.auto-replay-interval-ms:30000}")
     public void replayDeadDeliveries() {
+        lastRunAt = Instant.now();
         List<Delivery> deadDeliveries = deliveryRepository.findTop10ByStateOrderByUpdatedAtAsc(DeliveryState.DEAD);
         for (Delivery delivery : deadDeliveries) {
             try {
@@ -43,5 +56,13 @@ public class DlqAutoReplayScheduler {
                 log.warn("Auto-replay failed for delivery {}: {}", delivery.getId(), e.getMessage());
             }
         }
+    }
+
+    public long getIntervalMs() {
+        return intervalMs;
+    }
+
+    public Instant getLastRunAt() {
+        return lastRunAt;
     }
 }
