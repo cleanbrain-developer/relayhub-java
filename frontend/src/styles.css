@@ -792,6 +792,10 @@ code {
 }
 
 .source-event-row-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   font-weight: 600;
   margin-bottom: 0.4rem;
 }

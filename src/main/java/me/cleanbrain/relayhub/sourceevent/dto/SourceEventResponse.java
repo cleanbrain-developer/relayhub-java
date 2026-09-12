@@ -11,10 +11,17 @@ public record SourceEventResponse(
         UUID id,
         String sourceKey,
         String key,
+        String name,
+        String description,
         String resourceType,
         Operation operation,
         HttpVerb ingressMethod,
         String ingressPath,
+        String resourceIdPath,
+        String occurredAtPath,
+        String idempotencyKeyPath,
+        String idempotencyHeader,
+        String payloadSchema,
         Status status
 ) {
     public static SourceEventResponse from(SourceEvent sourceEvent) {
@@ -22,10 +29,17 @@ public record SourceEventResponse(
                 sourceEvent.getId(),
                 sourceEvent.getSource().getKey(),
                 sourceEvent.getKey(),
+                sourceEvent.getName(),
+                sourceEvent.getDescription(),
                 sourceEvent.getResourceType(),
                 sourceEvent.getOperation(),
                 sourceEvent.getIngressMethod(),
                 sourceEvent.getIngressPath(),
+                sourceEvent.getResourceIdPath(),
+                sourceEvent.getOccurredAtPath(),
+                sourceEvent.getIdempotencyKeyPath(),
+                sourceEvent.getIdempotencyHeader(),
+                sourceEvent.getPayloadSchema(),
                 sourceEvent.getStatus()
         );
     }

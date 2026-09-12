@@ -18,10 +18,17 @@ export interface SourceEvent {
   id: string;
   sourceKey: string;
   key: string;
+  name: string;
+  description: string;
   resourceType: string;
   operation: Operation;
   ingressMethod: HttpVerb;
   ingressPath: string;
+  resourceIdPath: string;
+  occurredAtPath: string | null;
+  idempotencyKeyPath: string | null;
+  idempotencyHeader: string | null;
+  payloadSchema: string | null;
   status: Status;
 }
 

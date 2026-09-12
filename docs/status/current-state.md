@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 ## Current phase
 
@@ -53,6 +53,7 @@ Last updated: 2026-09-12
   - **`DlqAutoReplayScheduler`** (30s default interval, 10 oldest DEAD deliveries per tick, reuses `DeliveryService.replay` so it shares the manual Replay button's semantics exactly): closes the "DLQ replay is purely manual" gap Spec 002 had left out of scope. `GET /api/dlq/schedule` exposes `lastRunAt`/`intervalMs` so the Live page can show a real countdown, resynced after each tick rather than trusted to stay accurate on client-clock drift alone.
   - **Spec 006 field registry** (`specs/006-field-registry/`, design approved 2026-09-12, implemented same day after the maintainer repeatedly asked why it hadn't landed): `SourceField`/`TargetField` entities (`V2__field_registry.sql` — the first migration since `V1`), nested CRUD under `/api/sources/{sourceKey}/events/{eventKey}/fields` and `/api/targets/{targetKey}/fields`, a `FieldRegistryEditor` frontend component (full add/**edit**/delete — an early version only exposed edit for the `required` flag, itself a maintainer-caught gap) surfaced via a "Field mapping" toggle, and `MappingBuilder`'s two free-text sides became dropdowns sourced from the registries when populated. `DemoDataSeeder` now also seeds example fields matching `relayhub-demo-systems`' real payload shape, since an empty registry on every fresh environment read as "not implemented" rather than "nothing registered yet."
   - Redeployed and verified live after every one of the above, following the same `gh run watch` → `kubectl rollout restart` → curl/browser-check discipline as every earlier phase.
+  - **Source Event CRUD UI** (2026-09-13): closed the gap the previous entry's `DemoDataSeeder` note only worked around — there was still no way to create or edit a Source Event itself through the console, only its nested field registry once one already existed via the API/seeder. `SourceEventResponse` gained the fields it was silently missing (`name`, `description`, `resourceIdPath`, `occurredAtPath`, `idempotencyKeyPath`, `idempotencyHeader`, `payloadSchema` — present on the entity and on create/update requests since Spec 001, never returned), and `SourceEventFields.tsx` (nested under each Source card's "Field mapping" section) gained full add/edit/deactivate/hard-delete, matching the same form-per-row convention as Sources/Targets/Subscriptions.
 
 ## In progress
 
@@ -61,10 +62,9 @@ Last updated: 2026-09-12
 ## Next
 
 1. Add `V2`+ migrations as real schema changes arise — `ddl-auto` will no longer silently apply them; each needs a deliberate SQL file and a `validate` check. (`V2__field_registry.sql` is the first one since baseline.)
-2. There is still no UI for creating a Source Event itself (only its nested fields, once one already exists via the API/demo seeder) — `SourceEventFields.tsx` says so explicitly. Worth closing if Sources/Targets management keeps growing.
-3. `management.tracing.sampling.probability` is `0` in production (no Zipkin there, see `cleanbrain-me-infra`'s `api/configmap.yaml`) but stays `1.0` for local dev — fine at personal-project scale either way; revisit only if real traffic volume ever changes that calculus (see `specs/004-observability/spec.md`).
-4. Consider whether `relayhub-demo-systems`' continuous traffic generation should be tuned (interval, failure rate) now that it's running unattended in production 24/7 rather than only during local verification sessions — it now also feeds `DlqAutoReplayScheduler`'s workload.
-5. `frontend`'s built JS bundle is ~598KB (mostly `recharts`) — fine at this traffic scale, but worth code-splitting (dynamic `import()`) if it ever matters.
+2. `management.tracing.sampling.probability` is `0` in production (no Zipkin there, see `cleanbrain-me-infra`'s `api/configmap.yaml`) but stays `1.0` for local dev — fine at personal-project scale either way; revisit only if real traffic volume ever changes that calculus (see `specs/004-observability/spec.md`).
+3. Consider whether `relayhub-demo-systems`' continuous traffic generation should be tuned (interval, failure rate) now that it's running unattended in production 24/7 rather than only during local verification sessions — it now also feeds `DlqAutoReplayScheduler`'s workload.
+4. `frontend`'s built JS bundle is ~603KB (mostly `recharts`) — fine at this traffic scale, but worth code-splitting (dynamic `import()`) if it ever matters.
 
 ## Open decisions
 
