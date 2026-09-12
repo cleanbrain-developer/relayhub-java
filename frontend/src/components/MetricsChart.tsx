@@ -53,11 +53,14 @@ export function MetricsChart({ title, query, seriesLabel, rangeMinutes = 60, ste
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={points}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-            <XAxis dataKey="time" tick={{ fontSize: 11 }} minTickGap={40} />
-            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-            <Tooltip />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis dataKey="time" tick={{ fontSize: 11, fill: "var(--muted)" }} minTickGap={40} />
+            <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--text)" }}
+              labelStyle={{ color: "var(--text)" }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12, color: "var(--muted)" }} />
             {seriesKeys.map((key, i) => (
               <Line
                 key={key}

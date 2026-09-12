@@ -1,10 +1,18 @@
+/*
+ * Theme: an explicit choice ([data-theme="dark"|"light"] on <html>, set by src/theme.ts) always
+ * wins. Dark is the *default* when there's no saved choice — deliberately not driven by
+ * prefers-color-scheme, see theme.ts's getTheme(). index.html's inline script applies the same
+ * default synchronously before first paint, so there's no light-theme flash on load.
+ */
 :root {
   color-scheme: light;
   --bg: #f4f5f9;
   --card: #ffffff;
+  --surface: #fafafe;
   --border: #e6e7ee;
   --text: #16161f;
   --muted: #767786;
+  --muted-soft: #eef0f3;
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-soft: #eef0fe;
@@ -14,9 +22,46 @@
   --warn-soft: #fdf1de;
   --danger: #d6293e;
   --danger-soft: #fdeaec;
+  --danger-border: #f6c6cc;
+  --dlq: #7c2d12;
+  --dlq-soft: #fdf1ee;
+  --dlq-edge: #d8b4a8;
+  --code-bg: #f0f0f5;
+  --input-bg: #ffffff;
+  --row-hover: #fbfbfe;
+  --topology-edge: #d7d9e6;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 16, 30, 0.04), 0 4px 16px rgba(16, 16, 30, 0.04);
   font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1016;
+  --card: #171a23;
+  --surface: #1b1e28;
+  --border: #2a2e3b;
+  --text: #e7e8f0;
+  --muted: #9395a8;
+  --muted-soft: #242833;
+  --accent: #818cf8;
+  --accent-hover: #a5b0fb;
+  --accent-soft: #262b48;
+  --ok: #34d399;
+  --ok-soft: #103224;
+  --warn: #fbbf24;
+  --warn-soft: #3a2c0d;
+  --danger: #f87171;
+  --danger-soft: #3a1a1d;
+  --danger-border: #5c2a2e;
+  --dlq: #e28568;
+  --dlq-soft: #33231d;
+  --dlq-edge: #5a3c32;
+  --code-bg: #20232e;
+  --input-bg: #1b1e28;
+  --row-hover: #1d2029;
+  --topology-edge: #363b4a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -83,6 +128,25 @@ body {
   padding: 0.4rem 0.5rem;
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin-right: 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  background: var(--bg);
+}
+
 .content {
   max-width: 1040px;
   margin: 0 auto;
@@ -133,7 +197,7 @@ th {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: #fafafe;
+  background: var(--surface);
 }
 
 tbody tr:last-child td {
@@ -141,7 +205,7 @@ tbody tr:last-child td {
 }
 
 tbody tr:hover {
-  background: #fbfbfe;
+  background: var(--row-hover);
 }
 
 .nested-table {
@@ -234,7 +298,7 @@ textarea {
   font-size: 0.88rem;
   font-family: inherit;
   color: var(--text);
-  background: #fff;
+  background: var(--input-bg);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -249,7 +313,7 @@ textarea:focus {
 button {
   padding: 0.45rem 0.9rem;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
   border-radius: 6px;
   cursor: pointer;
@@ -324,7 +388,7 @@ td button {
 
 .stat-tile.stat-danger {
   background: var(--danger-soft);
-  border-color: #f6c6cc;
+  border-color: var(--danger-border);
 }
 
 .stat-value {
@@ -416,13 +480,13 @@ td button {
 }
 
 .badge-muted {
-  background: #eef0f3;
+  background: var(--muted-soft);
   color: var(--muted);
 }
 
 code {
   font-size: 0.85em;
-  background: #f0f0f5;
+  background: var(--code-bg);
   padding: 0.12rem 0.35rem;
   border-radius: 4px;
 }
@@ -442,12 +506,12 @@ code {
 }
 
 .topology-edge {
-  stroke: #d7d9e6;
+  stroke: var(--topology-edge);
   stroke-width: 3;
 }
 
 .topology-node {
-  fill: #fff;
+  fill: var(--card);
   stroke-width: 2;
 }
 
@@ -456,22 +520,22 @@ code {
 }
 
 .topology-node-target {
-  stroke: #0f8b3f;
+  stroke: var(--ok);
 }
 
 .topology-node-event {
-  stroke: #b5680b;
+  stroke: var(--warn);
   stroke-dasharray: 4 2;
 }
 
 .topology-node-dlq {
-  stroke: #7c2d12;
+  stroke: var(--dlq);
   stroke-dasharray: 3 2;
-  fill: #fdf1ee;
+  fill: var(--dlq-soft);
 }
 
 .topology-edge-dlq {
-  stroke: #d8b4a8;
+  stroke: var(--dlq-edge);
   stroke-dasharray: 3 3;
 }
 
@@ -483,7 +547,7 @@ code {
 }
 
 .topology-label-dlq {
-  fill: #7c2d12;
+  fill: var(--dlq);
 }
 
 .topology-hub {
@@ -505,7 +569,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem;
-  background: #fbfbfe;
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

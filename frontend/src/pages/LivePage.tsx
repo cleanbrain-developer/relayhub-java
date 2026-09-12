@@ -59,7 +59,27 @@ const ROW_HEIGHT = 76;
 const TOP_MARGIN = 50;
 const PULSE_DURATION_MS = 950;
 const PULSE_RADIUS = 7;
+const COLOR_INGRESS = "#4f46e5";
+const COLOR_SUCCESS = "#0f8b3f";
+const COLOR_FAILED = "#d6293e";
 const DLQ_COLOR = "#7c2d12";
+
+/** How showy each pulse's impact explosion is — DLQ landings and failures get the biggest "boom",
+ *  a plain ingress arrival barely more than a puff. `colors` cycle across the radiating particles
+ *  for a bit of sparkle instead of a monochrome burst. */
+const EXPLOSION_PRESETS: Record<"ingress" | "success" | "failed" | "dlq", { count: number; distance: number; ring: number; colors: string[] }> = {
+  ingress: { count: 4, distance: 12, ring: 12, colors: [COLOR_INGRESS] },
+  success: { count: 7, distance: 22, ring: 20, colors: [COLOR_SUCCESS, "#ffd166"] },
+  failed: { count: 10, distance: 32, ring: 34, colors: [COLOR_FAILED, "#ff8c42"] },
+  dlq: { count: 13, distance: 38, ring: 42, colors: [DLQ_COLOR, "#8a8a8a", "#ff8c42"] },
+};
+
+function explosionKind(color: string): keyof typeof EXPLOSION_PRESETS {
+  if (color === DLQ_COLOR) return "dlq";
+  if (color === COLOR_FAILED) return "failed";
+  if (color === COLOR_SUCCESS) return "success";
+  return "ingress";
+}
 
 function layout(count: number, x: number): Point[] {
   return Array.from({ length: Math.max(count, 1) }, (_, i) => ({ x, y: TOP_MARGIN + i * ROW_HEIGHT }));
@@ -297,7 +317,7 @@ export function LivePage() {
       setFeed((prev) => [event, ...prev].slice(0, 30));
 
       const eventPos = event.eventKey ? eventPositions[eventNodeKey(event.sourceKey, event.eventKey)] : undefined;
-      const color = event.status === "failed" ? "#d6293e" : event.status === "success" ? "#0f8b3f" : "#4f46e5";
+      const color = event.status === "failed" ? COLOR_FAILED : event.status === "success" ? COLOR_SUCCESS : COLOR_INGRESS;
       const ingressKey = event.eventKey ? eventNodeKey(event.sourceKey, event.eventKey) : event.sourceKey;
       const now = performance.now();
 
@@ -510,6 +530,7 @@ export function LivePage() {
             const impactT = p.progress > 0.82 ? (p.progress - 0.82) / 0.18 : 0;
             const start = p.waypoints[0];
             const end = p.waypoints[p.waypoints.length - 1];
+            const explosion = EXPLOSION_PRESETS[explosionKind(p.color)];
             return (
               <g key={p.id}>
                 {launchT < 1 && (
@@ -524,15 +545,38 @@ export function LivePage() {
                   />
                 )}
                 {impactT > 0 && (
-                  <circle
-                    cx={end.x}
-                    cy={end.y}
-                    r={3 + impactT * 20}
-                    fill="none"
-                    stroke={p.color}
-                    strokeWidth={2}
-                    opacity={(1 - impactT) * 0.7}
-                  />
+                  <g>
+                    {/* shockwave ring */}
+                    <circle
+                      cx={end.x}
+                      cy={end.y}
+                      r={4 + impactT * explosion.ring}
+                      fill="none"
+                      stroke={p.color}
+                      strokeWidth={2.5}
+                      opacity={(1 - impactT) * 0.8}
+                    />
+                    {/* bright flash at the moment of impact */}
+                    <circle cx={end.x} cy={end.y} r={Math.max(0, 9 - impactT * 9)} fill="#fff" opacity={(1 - impactT) * 0.85} />
+                    {/* radiating "펑펑" debris — count/reach/palette scale up from a plain ingress
+                        arrival through a DLQ drop, the most dramatic landing of the three */}
+                    {Array.from({ length: explosion.count }).map((_, i) => {
+                      const angle = (i / explosion.count) * Math.PI * 2 + p.id * 0.37;
+                      const dist = impactT * explosion.distance;
+                      const px = end.x + Math.cos(angle) * dist;
+                      const py = end.y + Math.sin(angle) * dist;
+                      return (
+                        <circle
+                          key={i}
+                          cx={px}
+                          cy={py}
+                          r={Math.max(0, 2.6 * (1 - impactT))}
+                          fill={explosion.colors[i % explosion.colors.length]}
+                          opacity={1 - impactT}
+                        />
+                      );
+                    })}
+                  </g>
                 )}
                 <g opacity={opacity}>
                   {trail.map((t, i) => (
