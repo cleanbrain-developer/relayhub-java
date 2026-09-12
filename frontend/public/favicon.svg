@@ -1,29 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
-  <!-- Pixel-art favicon (maintainer-supplied reference image, 2026-09-13): two figures with a
-       crate between them, on a light-blue/grey scene. Hand-authored as a 16x16 grid of rects to
-       match the source's blocky pixel-art style, not a photographic trace. -->
-  <rect width="16" height="16" fill="#bfe6f5"/>
-  <rect x="0" y="13" width="16" height="3" fill="#8a8a8a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges">
+  <!-- Pixel-art favicon, redrawn from the maintainer-supplied reference image (2026-09-13): two
+       figures dipping into a paint bucket between them, on a light-blue/grey scene. Hand-authored
+       as a 24x24 grid of rects matching the source's blocky pixel-art style and palette. -->
+  <rect width="24" height="24" fill="#bee3f5"/>
+  <rect x="0" y="19" width="24" height="5" fill="#6e6672"/>
 
-  <!-- left figure: brown hair, white/red top, blue pants -->
-  <rect x="2" y="2" width="4" height="3" fill="#6b4a3a"/>
-  <rect x="2" y="5" width="1" height="2" fill="#6b4a3a"/>
-  <rect x="5" y="5" width="1" height="2" fill="#6b4a3a"/>
-  <rect x="3" y="5" width="2" height="2" fill="#f2c9a0"/>
-  <rect x="2" y="7" width="4" height="3" fill="#ffffff"/>
-  <rect x="2" y="7" width="1" height="3" fill="#d94f4f"/>
-  <rect x="5" y="7" width="1" height="1" fill="#d94f4f"/>
-  <rect x="5" y="9" width="1" height="1" fill="#f2c9a0"/>
-  <rect x="2" y="9" width="1" height="1" fill="#d94f4f"/>
-  <rect x="2" y="10" width="4" height="2" fill="#3a5fa0"/>
+  <!-- left figure: brown wavy hair, white/red top, blue overalls -->
+  <rect x="2" y="2" width="7" height="5" fill="#8b5a3c"/>
+  <rect x="1" y="5" width="2" height="5" fill="#8b5a3c"/>
+  <rect x="9" y="5" width="2" height="4" fill="#8b5a3c"/>
+  <rect x="1" y="10" width="1" height="2" fill="#8b5a3c"/>
+  <rect x="9" y="9" width="1" height="2" fill="#8b5a3c"/>
+  <rect x="4" y="6" width="5" height="4" fill="#f4cba0"/>
+  <rect x="5" y="7" width="1" height="1" fill="#1e1e1e"/>
+  <rect x="7" y="7" width="1" height="1" fill="#1e1e1e"/>
+  <rect x="4" y="10" width="5" height="1" fill="#ffffff"/>
+  <rect x="3" y="11" width="7" height="3" fill="#ffffff"/>
+  <rect x="3" y="11" width="2" height="4" fill="#d64545"/>
+  <rect x="8" y="11" width="1" height="1" fill="#d64545"/>
+  <rect x="9" y="13" width="1" height="1" fill="#f4cba0"/>
+  <rect x="10" y="14" width="1" height="1" fill="#f4cba0"/>
+  <rect x="3" y="14" width="7" height="4" fill="#3b5fa6"/>
+  <rect x="3" y="18" width="2" height="1" fill="#ffffff"/>
+  <rect x="7" y="18" width="2" height="1" fill="#ffffff"/>
 
-  <!-- crate -->
-  <rect x="7" y="11" width="2" height="2" fill="#c0392b"/>
+  <!-- paint bucket -->
+  <rect x="13" y="14" width="1" height="1" fill="#c0392b"/>
+  <rect x="13" y="15" width="1" height="1" fill="#c0392b"/>
+  <rect x="10" y="16" width="4" height="1" fill="#8e2a20"/>
+  <rect x="10" y="17" width="4" height="3" fill="#c0392b"/>
 
-  <!-- right figure: black hair, orange top -->
-  <rect x="10" y="2" width="3" height="2" fill="#1c1c1c"/>
-  <rect x="10" y="4" width="3" height="2" fill="#f2c9a0"/>
-  <rect x="9" y="6" width="4" height="6" fill="#e0952b"/>
-  <rect x="8" y="8" width="1" height="1" fill="#f2c9a0"/>
-  <rect x="10" y="12" width="2" height="1" fill="#ffffff"/>
+  <!-- right figure: black hair, mustard robe -->
+  <rect x="16" y="2" width="5" height="1" fill="#1e1e1e"/>
+  <rect x="15" y="3" width="7" height="3" fill="#1e1e1e"/>
+  <rect x="17" y="1" width="2" height="1" fill="#1e1e1e"/>
+  <rect x="16" y="6" width="5" height="4" fill="#f4cba0"/>
+  <rect x="17" y="7" width="1" height="1" fill="#1e1e1e"/>
+  <rect x="19" y="7" width="1" height="1" fill="#1e1e1e"/>
+  <rect x="16" y="10" width="5" height="1" fill="#f4cba0"/>
+  <rect x="15" y="11" width="7" height="6" fill="#e8a93d"/>
+  <rect x="16" y="12" width="2" height="1" fill="#3b5fa6"/>
+  <rect x="14" y="12" width="1" height="1" fill="#f4cba0"/>
+  <rect x="13" y="13" width="1" height="1" fill="#f4cba0"/>
+  <rect x="12" y="14" width="1" height="1" fill="#f4cba0"/>
+  <rect x="11" y="15" width="1" height="1" fill="#c0392b"/>
+  <rect x="15" y="17" width="7" height="2" fill="#c0392b"/>
 </svg>
