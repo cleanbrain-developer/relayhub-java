@@ -544,20 +544,44 @@ code {
 @keyframes topology-shake {
   10%,
   90% {
-    transform: translate3d(-1px, 0, 0);
+    transform: translate3d(-2px, 1px, 0) rotate(-0.3deg);
   }
   20%,
   80% {
-    transform: translate3d(2px, -1px, 0);
+    transform: translate3d(4px, -2px, 0) rotate(0.4deg);
   }
   30%,
   50%,
   70% {
-    transform: translate3d(-5px, 1px, 0);
+    transform: translate3d(-8px, 2px, 0) rotate(-0.6deg);
   }
   40%,
   60% {
-    transform: translate3d(5px, -1px, 0);
+    transform: translate3d(8px, -3px, 0) rotate(0.6deg);
+  }
+}
+
+.topology-node-hit {
+  animation: topology-node-hit 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes topology-node-hit {
+  10%,
+  90% {
+    transform: translate3d(-2px, 0, 0);
+  }
+  20%,
+  80% {
+    transform: translate3d(3px, -2px, 0);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-6px, 2px, 0);
+  }
+  40%,
+  60% {
+    transform: translate3d(6px, -2px, 0);
   }
 }
 

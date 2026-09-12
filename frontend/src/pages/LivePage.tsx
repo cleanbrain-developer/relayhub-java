@@ -77,10 +77,10 @@ const TRAIL_OFFSETS = [0.045, 0.09, 0.14, 0.19, 0.25, 0.32];
  *  a plain ingress arrival barely more than a puff. `colors` cycle across the radiating particles
  *  for a bit of sparkle instead of a monochrome burst. */
 const EXPLOSION_PRESETS: Record<"ingress" | "success" | "failed" | "dlq", { count: number; distance: number; ring: number; colors: string[] }> = {
-  ingress: { count: 6, distance: 18, ring: 16, colors: [COLOR_INGRESS, "#a5b4fc"] },
-  success: { count: 10, distance: 32, ring: 28, colors: [COLOR_SUCCESS, "#ffd166", "#6ee7b7"] },
-  failed: { count: 14, distance: 46, ring: 48, colors: [COLOR_FAILED, "#ff8c42", "#ffd166"] },
-  dlq: { count: 18, distance: 56, ring: 60, colors: [DLQ_COLOR, "#8a8a8a", "#ff8c42", "#c2410c"] },
+  ingress: { count: 9, distance: 24, ring: 20, colors: [COLOR_INGRESS, "#a5b4fc"] },
+  success: { count: 16, distance: 44, ring: 36, colors: [COLOR_SUCCESS, "#ffd166", "#6ee7b7"] },
+  failed: { count: 22, distance: 64, ring: 64, colors: [COLOR_FAILED, "#ff8c42", "#ffd166", "#fff3b0"] },
+  dlq: { count: 28, distance: 78, ring: 80, colors: [DLQ_COLOR, "#8a8a8a", "#ff8c42", "#c2410c", "#fff3b0"] },
 };
 
 function explosionKind(color: string): keyof typeof EXPLOSION_PRESETS {
@@ -168,6 +168,32 @@ export function LivePage() {
       if (shakeTimer.current !== null) window.clearTimeout(shakeTimer.current);
       shakeTimer.current = window.setTimeout(() => setShaking(false), 420);
     }, delayMs + PULSE_DURATION_MS * 0.8);
+  }
+
+  // Per-node "hit" shudder — whichever node a missile actually lands on (the Event node for an
+  // ingress, a Target for a delivery, the DLQ node for a dlq drop) shakes on its own, not just the
+  // whole card. Keyed so a fast flurry of hits on the same node restarts its own timer instead of
+  // fighting with the previous hit's.
+  const [shakingNodes, setShakingNodes] = useState<Set<string>>(new Set());
+  const nodeHitTimers = useRef<Map<string, number>>(new Map());
+  function triggerNodeHit(nodeKey: string, delayMs: number) {
+    window.setTimeout(() => {
+      setShakingNodes((prev) => new Set(prev).add(nodeKey));
+      const existing = nodeHitTimers.current.get(nodeKey);
+      if (existing !== undefined) window.clearTimeout(existing);
+      nodeHitTimers.current.set(
+        nodeKey,
+        window.setTimeout(() => {
+          setShakingNodes((prev) => {
+            if (!prev.has(nodeKey)) return prev;
+            const next = new Set(prev);
+            next.delete(nodeKey);
+            return next;
+          });
+          nodeHitTimers.current.delete(nodeKey);
+        }, 380)
+      );
+    }, delayMs + PULSE_DURATION_MS * 0.85);
   }
 
   useEffect(() => {
@@ -393,6 +419,7 @@ export function LivePage() {
         lastIngressAt.current.set(ingressKey, now + delay + PULSE_DURATION_MS);
         const spawn = () => spawnPulse([from, eventPos ?? hub], color);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        triggerNodeHit(`evt:${ingressKey}`, delay);
       } else if (event.stage === "delivery") {
         const to = event.targetKey ? targetPositions[event.targetKey] : null;
         if (!to) return;
@@ -409,6 +436,7 @@ export function LivePage() {
         // visibly passes through RelayHub instead of appearing to skip over it.
         const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, event.replay);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        triggerNodeHit(`tgt:${event.targetKey}`, delay);
         if (event.status === "failed") triggerShake(delay);
         // Only a replay that *succeeded* actually changed the DLQ count (it just left the
         // queue) — a replay that failed again was already DEAD and stays DEAD.
@@ -421,6 +449,7 @@ export function LivePage() {
         lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
         const spawn = () => spawnPulse([hub, dlqPos], DLQ_COLOR);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        triggerNodeHit("dlq", delay);
         triggerShake(delay);
         scheduleDlqRefetch();
       }
@@ -537,7 +566,7 @@ export function LivePage() {
                   width={NODE_WIDTH_EVENT}
                   height={NODE_HEIGHT}
                   rx={8}
-                  className="topology-node topology-node-event"
+                  className={`topology-node topology-node-event${shakingNodes.has(`evt:${n.key}`) ? " topology-node-hit" : ""}`}
                 />
                 <text x={pos.x} y={pos.y + 5} textAnchor="middle" className="topology-label">
                   {n.eventKey}
@@ -558,7 +587,7 @@ export function LivePage() {
                   width={NODE_WIDTH_TARGET}
                   height={NODE_HEIGHT}
                   rx={8}
-                  className="topology-node topology-node-target"
+                  className={`topology-node topology-node-target${shakingNodes.has(`tgt:${t.key}`) ? " topology-node-hit" : ""}`}
                 />
                 <text x={pos.x} y={pos.y + 5} textAnchor="middle" className="topology-label">
                   {t.key}
@@ -587,7 +616,7 @@ export function LivePage() {
             width={NODE_WIDTH_DLQ}
             height={NODE_HEIGHT}
             rx={8}
-            className="topology-node topology-node-dlq"
+            className={`topology-node topology-node-dlq${shakingNodes.has("dlq") ? " topology-node-hit" : ""}`}
           />
           <text x={dlqPos.x} y={dlqPos.y + 5} textAnchor="middle" className="topology-label topology-label-dlq">
             DLQ{deadCount !== null ? ` (${deadCount})` : ""}
@@ -651,8 +680,15 @@ export function LivePage() {
                       strokeWidth={2}
                       opacity={Math.max(0, (1 - impactT) * 0.6 - 0.1)}
                     />
-                    {/* bright flash at the moment of impact */}
-                    <circle cx={end.x} cy={end.y} r={Math.max(0, 14 - impactT * 14)} fill="#fff" opacity={(1 - impactT) * 0.9} />
+                    {/* strobing flash — flickers rather than smoothly fading for the first stretch
+                        of the impact, a harsher "빡빡 터지는" read than a clean fade */}
+                    <circle
+                      cx={end.x}
+                      cy={end.y}
+                      r={Math.max(0, 16 - impactT * 16)}
+                      fill="#fff"
+                      opacity={(1 - impactT) * (impactT < 0.4 ? (Math.sin(impactT * 70) > 0 ? 1 : 0.35) : 0.9)}
+                    />
                     {/* comic-book callout — the last flashy flourish: a bold word that pops and
                         drifts up out of the explosion, not just particles */}
                     {IMPACT_TEXT[explosionKind(p.color)] && impactT < 0.75 && (
@@ -681,15 +717,30 @@ export function LivePage() {
                       const px = end.x + Math.cos(angle) * dist;
                       const py = end.y + Math.sin(angle) * dist;
                       const chunk = i % 3 === 0;
+                      const particleColor = explosion.colors[i % explosion.colors.length];
                       return (
-                        <circle
-                          key={i}
-                          cx={px}
-                          cy={py}
-                          r={Math.max(0, (chunk ? 4.2 : 2.4) * (1 - impactT))}
-                          fill={explosion.colors[i % explosion.colors.length]}
-                          opacity={1 - impactT}
-                        />
+                        <g key={i}>
+                          {/* a fast-moving "chunk" drags a short motion-blur streak behind it */}
+                          {chunk && (
+                            <line
+                              x1={end.x + Math.cos(angle) * dist * 0.45}
+                              y1={end.y + Math.sin(angle) * dist * 0.45}
+                              x2={px}
+                              y2={py}
+                              stroke={particleColor}
+                              strokeWidth={Math.max(0, 2.2 * (1 - impactT))}
+                              strokeLinecap="round"
+                              opacity={(1 - impactT) * 0.7}
+                            />
+                          )}
+                          <circle
+                            cx={px}
+                            cy={py}
+                            r={Math.max(0, (chunk ? 4.6 : 2.4) * (1 - impactT))}
+                            fill={particleColor}
+                            opacity={1 - impactT}
+                          />
+                        </g>
                       );
                     })}
                   </g>
