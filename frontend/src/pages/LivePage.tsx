@@ -25,14 +25,19 @@ interface EventNode {
 
 interface Pulse {
   id: number;
-  from: Point;
-  to: Point;
+  /** 2+ points the pulse actually flies through in order — e.g. [Event, Hub, Target] for a
+   *  delivery, so the flight visibly passes through the RelayHub node instead of arcing straight
+   *  from Event to Target and skipping over it. */
+  waypoints: Point[];
+  /** One random perpendicular bezier-control-point offset per leg (waypoints.length - 1 of
+   *  them), so consecutive missiles along the same edge don't overlap in a perfectly straight
+   *  line, and each leg still gets its own gentle curve. */
+  arcs: number[];
+  /** Each leg's share of total flight time, proportional to its straight-line length so the
+   *  missile doesn't visibly change speed at the waypoint in between (sums to 1). */
+  legWeights: number[];
   color: string;
   start: number;
-  /** Perpendicular offset (px) of the quadratic-bezier control point — a random arc per pulse,
-   *  positive or negative, so consecutive missiles along the same edge don't overlap in a
-   *  perfectly straight line. */
-  arc: number;
 }
 
 const NODE_X_SOURCE = 85;
@@ -180,38 +185,62 @@ export function LivePage() {
     }
   }
 
-  function spawnPulse(from: Point, to: Point, color: string) {
-    // Random arc (not always the same straight line) and slightly randomized duration/scale give
-    // each "missile" its own flight instead of a mechanical, identical repeat every time.
-    const arc = (Math.random() - 0.5) * 60;
+  function spawnPulse(waypoints: Point[], color: string) {
+    // Random arc per leg (not always the same straight line) gives each "missile" its own flight
+    // instead of a mechanical, identical repeat every time.
+    const arcs = waypoints.slice(1).map(() => (Math.random() - 0.5) * 60);
+    // Constant-speed feel across legs of very different lengths (e.g. a short Event->Hub hop
+    // followed by a much longer Hub->Target one) — weight each leg's share of the total duration
+    // by its own straight-line distance instead of splitting time evenly.
+    const lengths = waypoints.slice(1).map((to, i) => Math.hypot(to.x - waypoints[i].x, to.y - waypoints[i].y) || 1);
+    const totalLength = lengths.reduce((a, b) => a + b, 0);
+    const legWeights = lengths.map((len) => len / totalLength);
     pulsesRef.current = [
       ...pulsesRef.current,
-      { id: pulseId.current++, from, to, color, start: performance.now(), arc },
+      { id: pulseId.current++, waypoints, arcs, legWeights, color, start: performance.now() },
     ];
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(tick);
     }
   }
 
-  /** Position + heading along pulse `p`'s curved flight path at animation progress `t` (0..1) —
-   *  a quadratic bezier through `p.arc`'s perpendicular offset, not a straight line. */
-  function pointOnArc(p: Pulse, t: number): { x: number; y: number; angleDeg: number } {
-    const mx = (p.from.x + p.to.x) / 2;
-    const my = (p.from.y + p.to.y) / 2;
-    const dx = p.to.x - p.from.x;
-    const dy = p.to.y - p.from.y;
+  /** Position + heading along one quadratic-bezier leg (from `a` to `b`, `arc`'s perpendicular
+   *  offset, not a straight line) at local progress `t` (0..1). */
+  function pointOnLeg(a: Point, b: Point, arc: number, t: number): { x: number; y: number; angleDeg: number } {
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
-    // Perpendicular unit vector, scaled by this pulse's own random arc offset.
-    const cx = mx + (-dy / len) * p.arc;
-    const cy = my + (dx / len) * p.arc;
+    // Perpendicular unit vector, scaled by this leg's own random arc offset.
+    const cx = mx + (-dy / len) * arc;
+    const cy = my + (dx / len) * arc;
 
-    const x = (1 - t) * (1 - t) * p.from.x + 2 * (1 - t) * t * cx + t * t * p.to.x;
-    const y = (1 - t) * (1 - t) * p.from.y + 2 * (1 - t) * t * cy + t * t * p.to.y;
+    const x = (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * cx + t * t * b.x;
+    const y = (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * cy + t * t * b.y;
     // Bezier tangent (derivative) — which way the "missile" is currently pointing.
-    const tx = 2 * (1 - t) * (cx - p.from.x) + 2 * t * (p.to.x - cx);
-    const ty = 2 * (1 - t) * (cy - p.from.y) + 2 * t * (p.to.y - cy);
+    const tx = 2 * (1 - t) * (cx - a.x) + 2 * t * (b.x - cx);
+    const ty = 2 * (1 - t) * (cy - a.y) + 2 * t * (b.y - cy);
     const angleDeg = (Math.atan2(ty, tx) * 180) / Math.PI;
     return { x, y, angleDeg };
+  }
+
+  /** Position + heading along pulse `p`'s full (possibly multi-leg) flight path at overall
+   *  progress `t` (0..1) — walks the leg whose time-share `t` falls into, so a delivery pulse
+   *  with waypoints [Event, Hub, Target] visibly passes through the Hub node instead of arcing
+   *  straight past it. */
+  function pointOnPath(p: Pulse, t: number): { x: number; y: number; angleDeg: number } {
+    let acc = 0;
+    for (let i = 0; i < p.legWeights.length; i++) {
+      const w = p.legWeights[i];
+      const isLast = i === p.legWeights.length - 1;
+      if (t <= acc + w || isLast) {
+        const localT = w > 0 ? Math.min(Math.max((t - acc) / w, 0), 1) : 1;
+        return pointOnLeg(p.waypoints[i], p.waypoints[i + 1], p.arcs[i], localT);
+      }
+      acc += w;
+    }
+    return pointOnLeg(p.waypoints[0], p.waypoints[1], p.arcs[0], 0);
   }
 
   useEffect(() => {
@@ -223,13 +252,19 @@ export function LivePage() {
       setFeed((prev) => [event, ...prev].slice(0, 30));
 
       const eventPos = event.eventKey ? eventPositions[eventNodeKey(event.sourceKey, event.eventKey)] : undefined;
-      const from = event.stage === "ingress" ? sourcePositions[event.sourceKey] : eventPos ?? hub;
-      const to =
-        event.stage === "ingress" ? eventPos ?? hub : event.targetKey ? targetPositions[event.targetKey] : null;
-      if (!from || !to) return;
-
       const color = event.status === "failed" ? "#d6293e" : event.status === "success" ? "#0f8b3f" : "#4f46e5";
-      spawnPulse(from, to, color);
+
+      if (event.stage === "ingress") {
+        const from = sourcePositions[event.sourceKey];
+        if (!from) return;
+        spawnPulse([from, eventPos ?? hub], color);
+      } else {
+        const to = event.targetKey ? targetPositions[event.targetKey] : null;
+        if (!to) return;
+        // Explicitly routed through the Hub node (not a direct Event->Target arc) so the flight
+        // visibly passes through RelayHub instead of appearing to skip over it.
+        spawnPulse([eventPos ?? hub, hub, to], color);
+      }
     });
     return () => {
       source.close();
@@ -378,21 +413,23 @@ export function LivePage() {
           </text>
 
           {renderedPulses.map((p) => {
-            const { x, y, angleDeg } = pointOnArc(p, p.progress);
+            const { x, y, angleDeg } = pointOnPath(p, p.progress);
             const opacity = p.progress > 0.85 ? 1 - (p.progress - 0.85) / 0.15 : 1;
             // A short flame trail (warm colors near the nozzle, fading into the pulse's own
             // status color further back) reads as thrust far more convincingly than a plain dot.
-            const trail = [0.06, 0.12, 0.19, 0.27].map((back) => pointOnArc(p, Math.max(p.progress - back, 0)));
+            const trail = [0.06, 0.12, 0.19, 0.27].map((back) => pointOnPath(p, Math.max(p.progress - back, 0)));
             // A launch puff at t=0 and an impact burst at t=1 — the two "cute" flourishes that
             // turn a moving dot into something that reads as a tiny missile taking off/landing.
             const launchT = Math.min(p.progress / 0.18, 1);
             const impactT = p.progress > 0.82 ? (p.progress - 0.82) / 0.18 : 0;
+            const start = p.waypoints[0];
+            const end = p.waypoints[p.waypoints.length - 1];
             return (
               <g key={p.id}>
                 {launchT < 1 && (
                   <circle
-                    cx={p.from.x}
-                    cy={p.from.y}
+                    cx={start.x}
+                    cy={start.y}
                     r={3 + launchT * 16}
                     fill="none"
                     stroke={p.color}
@@ -402,8 +439,8 @@ export function LivePage() {
                 )}
                 {impactT > 0 && (
                   <circle
-                    cx={p.to.x}
-                    cy={p.to.y}
+                    cx={end.x}
+                    cy={end.y}
                     r={3 + impactT * 20}
                     fill="none"
                     stroke={p.color}
