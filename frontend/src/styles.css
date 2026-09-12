@@ -30,6 +30,7 @@
   --input-bg: #ffffff;
   --row-hover: #fbfbfe;
   --topology-edge: #d7d9e6;
+  --star-color: rgba(79, 70, 229, 0.14);
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 16, 30, 0.04), 0 4px 16px rgba(16, 16, 30, 0.04);
   font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -61,6 +62,7 @@
   --input-bg: #1b1e28;
   --row-hover: #1d2029;
   --topology-edge: #363b4a;
+  --star-color: rgba(129, 140, 248, 0.4);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
@@ -501,8 +503,73 @@ code {
   margin-bottom: 0;
 }
 
+.live-title {
+  background: linear-gradient(90deg, var(--accent), #ec4899, var(--ok), var(--warn), var(--accent));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: live-title-shimmer 7s linear infinite;
+}
+
+@keyframes live-title-shimmer {
+  to {
+    background-position: 300% 0;
+  }
+}
+
 .live-topology {
   padding: 1rem;
+  position: relative;
+  overflow: hidden;
+  /* A faint drifting starfield behind the topology — "mission control" ambience even when idle. */
+  background-image: radial-gradient(circle, var(--star-color) 1px, transparent 1.6px);
+  background-size: 28px 28px;
+  animation: topology-stars-drift 22s linear infinite;
+}
+
+@keyframes topology-stars-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 280px 140px;
+  }
+}
+
+.topology-shake {
+  animation: topology-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both, topology-stars-drift 22s linear infinite;
+}
+
+@keyframes topology-shake {
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%,
+  80% {
+    transform: translate3d(2px, -1px, 0);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-5px, 1px, 0);
+  }
+  40%,
+  60% {
+    transform: translate3d(5px, -1px, 0);
+  }
+}
+
+.topology-impact-text {
+  font-size: 18px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  pointer-events: none;
 }
 
 .topology-edge {

@@ -90,6 +90,15 @@ function explosionKind(color: string): keyof typeof EXPLOSION_PRESETS {
   return "ingress";
 }
 
+/** Comic-style callout text that pops at the impact point — skipped for "ingress" (it lands on
+ *  the Event node constantly and would drown everything else out), shown for the three stages
+ *  that actually mean something happened. */
+const IMPACT_TEXT: Partial<Record<keyof typeof EXPLOSION_PRESETS, string>> = {
+  success: "HIT!",
+  failed: "BOOM!",
+  dlq: "DLQ!",
+};
+
 function layout(count: number, x: number): Point[] {
   return Array.from({ length: Math.max(count, 1) }, (_, i) => ({ x, y: TOP_MARGIN + i * ROW_HEIGHT }));
 }
@@ -148,6 +157,18 @@ export function LivePage() {
   const lastIngressAt = useRef<Map<string, number>>(new Map());
   const lastDeliveryAt = useRef<Map<string, number>>(new Map());
   const summaryRefetchTimer = useRef<number | null>(null);
+  // Brief screen-shake on the topology card when something dramatic lands (a failed delivery or
+  // a DLQ drop) — timed to roughly coincide with the pulse's impact, not its spawn, via the same
+  // readyDelay() scheduling used for the pulse itself.
+  const [shaking, setShaking] = useState(false);
+  const shakeTimer = useRef<number | null>(null);
+  function triggerShake(delayMs: number) {
+    window.setTimeout(() => {
+      setShaking(true);
+      if (shakeTimer.current !== null) window.clearTimeout(shakeTimer.current);
+      shakeTimer.current = window.setTimeout(() => setShaking(false), 420);
+    }, delayMs + PULSE_DURATION_MS * 0.8);
+  }
 
   useEffect(() => {
     // ACTIVE only — a deactivated Source/Target can't actually produce traffic (Subscriptions
@@ -388,6 +409,7 @@ export function LivePage() {
         // visibly passes through RelayHub instead of appearing to skip over it.
         const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, event.replay);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        if (event.status === "failed") triggerShake(delay);
         // Only a replay that *succeeded* actually changed the DLQ count (it just left the
         // queue) — a replay that failed again was already DEAD and stays DEAD.
         if (event.replay && event.status === "success") scheduleDlqRefetch();
@@ -399,6 +421,7 @@ export function LivePage() {
         lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
         const spawn = () => spawnPulse([hub, dlqPos], DLQ_COLOR);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
+        triggerShake(delay);
         scheduleDlqRefetch();
       }
     });
@@ -411,7 +434,7 @@ export function LivePage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Live Activity</h1>
+        <h1 className="live-title">Live Activity</h1>
         <div className="live-header-controls">
           {loggedIn && simulator && (
             <label className="inline-checkbox simulator-toggle">
@@ -447,7 +470,7 @@ export function LivePage() {
         )}
       </p>
 
-      <div className="card live-topology">
+      <div className={`card live-topology${shaking ? " topology-shake" : ""}`}>
         <svg viewBox={`0 0 960 ${svgHeight}`} width="100%" height={svgHeight} preserveAspectRatio="xMidYMid meet">
           {sources.map((s) => {
             const pos = sourcePositions[s.key];
@@ -544,7 +567,15 @@ export function LivePage() {
             );
           })}
 
-          <rect x={hub.x - 60} y={hub.y - 24} width={120} height={48} rx={12} className="topology-hub" />
+          <rect
+            x={hub.x - 60}
+            y={hub.y - 24}
+            width={120}
+            height={48}
+            rx={12}
+            className="topology-hub"
+            style={{ animationDuration: `${Math.max(0.5, 2.2 - renderedPulses.length * 0.18)}s` }}
+          />
           <text x={hub.x} y={hub.y + 5} textAnchor="middle" className="topology-hub-label">
             RelayHub
           </text>
@@ -622,6 +653,24 @@ export function LivePage() {
                     />
                     {/* bright flash at the moment of impact */}
                     <circle cx={end.x} cy={end.y} r={Math.max(0, 14 - impactT * 14)} fill="#fff" opacity={(1 - impactT) * 0.9} />
+                    {/* comic-book callout — the last flashy flourish: a bold word that pops and
+                        drifts up out of the explosion, not just particles */}
+                    {IMPACT_TEXT[explosionKind(p.color)] && impactT < 0.75 && (
+                      <text
+                        x={end.x}
+                        y={end.y - 22 - impactT * 26}
+                        textAnchor="middle"
+                        className="topology-impact-text"
+                        style={{
+                          fill: p.color,
+                          opacity: impactT < 0.15 ? impactT / 0.15 : 1 - (impactT - 0.15) / 0.6,
+                          transform: `scale(${0.5 + Math.min(impactT / 0.2, 1) * 0.8})`,
+                          transformOrigin: `${end.x}px ${end.y - 22}px`,
+                        }}
+                      >
+                        {IMPACT_TEXT[explosionKind(p.color)]}
+                      </text>
+                    )}
                     {/* radiating "펑펑" debris — count/reach/palette scale up from a plain ingress
                         arrival through a DLQ drop, the most dramatic landing of the three. Sizes
                         alternate big "chunks" and small "sparks" instead of uniform dots. */}
@@ -646,6 +695,24 @@ export function LivePage() {
                   </g>
                 )}
                 <g opacity={opacity}>
+                  {/* comet-tail ribbon — thin connecting strokes between consecutive trail points
+                      (and the missile itself) underneath the trail dots, so the flame reads as one
+                      continuous streak instead of a string of separate blobs */}
+                  {[{ x, y }, ...trail].map((point, i, arr) =>
+                    i === 0 ? null : (
+                      <line
+                        key={`ribbon-${i}`}
+                        x1={arr[i - 1].x}
+                        y1={arr[i - 1].y}
+                        x2={point.x}
+                        y2={point.y}
+                        stroke={i <= TRAIL_COLORS.length ? TRAIL_COLORS[i - 1] : p.color}
+                        strokeWidth={PULSE_RADIUS * (0.9 - i * 0.12)}
+                        strokeLinecap="round"
+                        opacity={0.4 - i * 0.05}
+                      />
+                    )
+                  )}
                   {trail.map((t, i) => (
                     <circle
                       key={i}
