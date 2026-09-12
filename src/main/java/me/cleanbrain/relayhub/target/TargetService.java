@@ -6,6 +6,7 @@ import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
 import me.cleanbrain.relayhub.target.dto.TargetUpdateRequest;
+import me.cleanbrain.relayhub.targetfield.TargetFieldRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,8 @@ public class TargetService {
     // pattern (avoids a circular service dependency; SubscriptionService already depends on
     // TargetService).
     private final SubscriptionRepository subscriptionRepository;
+    // Same repository-not-service reasoning — TargetFieldService already depends on this class.
+    private final TargetFieldRepository targetFieldRepository;
 
     @Transactional
     public Target create(TargetCreateRequest request) {
@@ -76,6 +79,12 @@ public class TargetService {
             throw new IllegalStateException(
                     "Cannot permanently delete Target %s: %d Subscription(s) still reference it"
                             .formatted(key, subscriptionCount));
+        }
+        long fieldCount = targetFieldRepository.countByTarget_Id(target.getId());
+        if (fieldCount > 0) {
+            throw new IllegalStateException(
+                    "Cannot permanently delete Target %s: %d Target Field(s) still registered on it"
+                            .formatted(key, fieldCount));
         }
         targetRepository.delete(target);
     }

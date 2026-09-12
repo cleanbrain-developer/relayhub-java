@@ -550,6 +550,13 @@ code {
   fill: var(--dlq);
 }
 
+.topology-label-dlq-timer {
+  font-size: 10px;
+  font-weight: 500;
+  fill: var(--muted);
+  pointer-events: none;
+}
+
 .topology-hub {
   fill: var(--accent);
 }
@@ -608,6 +615,59 @@ code {
 
 .mapping-builder > button {
   align-self: flex-start;
+}
+
+.field-registry {
+  margin-top: 0.5rem;
+}
+
+.field-registry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.field-registry-header .inline-checkbox {
+  margin-bottom: 0;
+}
+
+.field-registry-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.field-registry-form input,
+.field-registry-form select {
+  width: auto;
+  flex: 1 1 140px;
+}
+
+.field-registry-form .inline-checkbox {
+  margin-bottom: 0;
+  flex: 0 0 auto;
+}
+
+.source-event-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.source-event-row .link-button {
+  padding: 0.3rem 0;
+  font-weight: 600;
+}
+
+.mapping-select {
+  flex: 1;
 }
 
 @media (max-width: 640px) {

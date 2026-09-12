@@ -221,6 +221,9 @@ export function SubscriptionsPage() {
               <MappingBuilder
                 value={form.targetPayloadTemplate}
                 onChange={(t) => setForm({ ...form, targetPayloadTemplate: t })}
+                sourceKey={form.sourceKey}
+                sourceEventKey={form.sourceEventKey}
+                targetKey={form.targetKey}
               />
             </label>
             <label>
@@ -296,6 +299,9 @@ export function SubscriptionsPage() {
                     <MappingBuilder
                       value={editForm.targetPayloadTemplate}
                       onChange={(t) => setEditForm({ ...editForm, targetPayloadTemplate: t })}
+                      sourceKey={s.sourceKey}
+                      sourceEventKey={s.sourceEventKey}
+                      targetKey={s.targetKey}
                     />
                   </label>
                   <label>

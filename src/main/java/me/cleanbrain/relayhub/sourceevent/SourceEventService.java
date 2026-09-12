@@ -5,6 +5,7 @@ import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.source.Source;
 import me.cleanbrain.relayhub.source.SourceService;
+import me.cleanbrain.relayhub.sourcefield.SourceFieldRepository;
 import me.cleanbrain.relayhub.sourceevent.dto.SourceEventCreateRequest;
 import me.cleanbrain.relayhub.sourceevent.dto.SourceEventUpdateRequest;
 import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
@@ -24,6 +25,9 @@ public class SourceEventService {
     // be circular. The repository-level dependency avoids that while still letting hardDelete
     // check for referencing Subscriptions below.
     private final SubscriptionRepository subscriptionRepository;
+    // Same repository-not-service reasoning: SourceFieldService already depends on this class to
+    // resolve a field's owning SourceEvent.
+    private final SourceFieldRepository sourceFieldRepository;
 
     @Transactional
     public SourceEvent create(String sourceKey, SourceEventCreateRequest request) {
@@ -92,9 +96,10 @@ public class SourceEventService {
 
     /**
      * Permanently removes the row — admin-only. Blocked (409, via IllegalStateException — see
-     * GlobalExceptionHandler) while any Subscription (any status) still references it, since
-     * {@code subscriptions.source_event_id} is a real DB foreign key (see
-     * db/migration/V1__init_schema.sql) — deactivate/hard-delete those Subscriptions first.
+     * GlobalExceptionHandler) while any Subscription (any status) or SourceField (any status)
+     * still references it, since both {@code subscriptions.source_event_id} and
+     * {@code source_fields.source_event_id} are real DB foreign keys (see
+     * db/migration/V1__init_schema.sql, V2__field_registry.sql) — deactivate/hard-delete those first.
      */
     @Transactional
     public void hardDelete(String sourceKey, String key) {
@@ -104,6 +109,12 @@ public class SourceEventService {
             throw new IllegalStateException(
                     "Cannot permanently delete Source Event %s/%s: %d Subscription(s) still reference it"
                             .formatted(sourceKey, key, subscriptionCount));
+        }
+        long fieldCount = sourceFieldRepository.countBySourceEvent_Id(sourceEvent.getId());
+        if (fieldCount > 0) {
+            throw new IllegalStateException(
+                    "Cannot permanently delete Source Event %s/%s: %d Source Field(s) still registered on it"
+                            .formatted(sourceKey, key, fieldCount));
         }
         sourceEventRepository.delete(sourceEvent);
     }

@@ -3,6 +3,7 @@ export type HttpVerb = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type Operation = "CREATED" | "REPLACED" | "PATCHED" | "DELETED";
 export type DeliveryState = "PENDING" | "SUCCEEDED" | "DEAD";
 export type DeliveryStatus = "SUCCESS" | "FAILED";
+export type FieldDataType = "STRING" | "NUMBER" | "BOOLEAN" | "OBJECT" | "ARRAY" | "DATE";
 
 export interface Source {
   id: string;
@@ -30,6 +31,32 @@ export interface Target {
   name: string;
   description: string;
   baseUrl: string;
+  status: Status;
+}
+
+export interface SourceField {
+  id: string;
+  sourceKey: string;
+  sourceEventKey: string;
+  key: string;
+  jsonPath: string;
+  dataType: FieldDataType;
+  description: string | null;
+  exampleValue: string | null;
+  required: boolean;
+  sensitive: boolean;
+  status: Status;
+}
+
+export interface TargetField {
+  id: string;
+  targetKey: string;
+  key: string;
+  dataType: FieldDataType;
+  description: string | null;
+  exampleValue: string | null;
+  required: boolean;
+  sensitive: boolean;
   status: Status;
 }
 

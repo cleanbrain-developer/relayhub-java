@@ -3,6 +3,7 @@ import { del, get, post, put } from "../api";
 import { isLoggedIn } from "../auth";
 import { Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { FieldRegistryEditor } from "../components/FieldRegistryEditor";
 
 const emptyForm = { key: "", name: "", description: "", baseUrl: "", authenticationConfig: "" };
 
@@ -14,6 +15,7 @@ export function TargetsPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", baseUrl: "", authenticationConfig: "" });
+  const [fieldsOpenKey, setFieldsOpenKey] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
 
   function reload() {
@@ -147,6 +149,9 @@ export function TargetsPage() {
               </div>
               <div className="entity-card-actions">
                 <StatusBadge value={t.status} />
+                <button onClick={() => setFieldsOpenKey(fieldsOpenKey === t.key ? null : t.key)}>
+                  {fieldsOpenKey === t.key ? "Hide fields" : "Fields"}
+                </button>
                 {loggedIn && (
                   <>
                     <button onClick={() => startEdit(t)}>{editingKey === t.key ? "Close" : "Edit"}</button>
@@ -158,6 +163,15 @@ export function TargetsPage() {
                 )}
               </div>
             </div>
+            {fieldsOpenKey === t.key && (
+              <div className="entity-card-edit">
+                <p className="muted">
+                  Fields this Target can accept — registered here so Subscriptions can map them via dropdown instead
+                  of free-typed field names.
+                </p>
+                <FieldRegistryEditor basePath={`/api/targets/${t.key}/fields`} includeJsonPath={false} loggedIn={loggedIn} />
+              </div>
+            )}
             {editingKey === t.key && (
               <div className="entity-card-edit">
                 <div className="form-grid">

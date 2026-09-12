@@ -3,6 +3,7 @@ import { del, get, post, put } from "../api";
 import { isLoggedIn } from "../auth";
 import { Source } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { SourceEventFields } from "../components/SourceEventFields";
 
 const emptyForm = { key: "", name: "", description: "", authenticationConfig: "" };
 
@@ -14,6 +15,7 @@ export function SourcesPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", description: "", authenticationConfig: "" });
+  const [fieldsOpenKey, setFieldsOpenKey] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
 
   function reload() {
@@ -138,6 +140,9 @@ export function SourcesPage() {
               </div>
               <div className="entity-card-actions">
                 <StatusBadge value={s.status} />
+                <button onClick={() => setFieldsOpenKey(fieldsOpenKey === s.key ? null : s.key)}>
+                  {fieldsOpenKey === s.key ? "Hide fields" : "Fields"}
+                </button>
                 {loggedIn && (
                   <>
                     <button onClick={() => startEdit(s)}>{editingKey === s.key ? "Close" : "Edit"}</button>
@@ -149,6 +154,15 @@ export function SourcesPage() {
                 )}
               </div>
             </div>
+            {fieldsOpenKey === s.key && (
+              <div className="entity-card-edit">
+                <p className="muted">
+                  Fields each Source Event can supply — registered here so Subscriptions can map them via dropdown
+                  instead of free-typed JSONPath.
+                </p>
+                <SourceEventFields sourceKey={s.key} loggedIn={loggedIn} />
+              </div>
+            )}
             {editingKey === s.key && (
               <div className="entity-card-edit">
                 <div className="form-grid">
