@@ -59,7 +59,7 @@ Last updated: 2026-09-13
 
 ## In progress
 
-- This second CORS expansion is committed locally but not yet pushed — the corresponding `developer.cleanbrain.me` port of the topology animation needs to land in that repository first so the two can be verified together. Once pushed, confirm CI's `test` job passes before considering it verified, same discipline as the first CORS change.
+- None currently. Pushed and deployed same day: CI (`test` → `build-and-push` → `deploy`) succeeded, and the expanded CORS was confirmed live via `curl -H "Origin: https://developer.cleanbrain.me"` against both a plain endpoint (`/api/sources`) and the SSE stream's own preflight (`/api/live/stream`) — both returned `Access-Control-Allow-Origin`. `developer.cleanbrain.me`'s `LiveTopology` port then shipped against this, same day.
 
 ## Next
 
