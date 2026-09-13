@@ -14,6 +14,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 /**
  * Single fixed admin account (no user table — see specs/005-admin-console/spec.md), guarding only
@@ -46,9 +51,33 @@ public class SecurityConfig {
                         .build());
     }
 
+    /**
+     * developer.cleanbrain.me's RelayHub Live Lab reads this service's public, read-only
+     * observability endpoints (deliveries summary, targets, Prometheus-backed metrics, actuator
+     * health) directly from the browser — see that repo's ADR-0004. Scoped to GET only and to
+     * exactly that one origin; it grants no write access and no broader origin allowlist. These
+     * paths were already unauthenticated for same-origin requests (see the GET-is-public rule
+     * below) — this bean only lets a browser on a different origin read the response body too.
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("https://developer.cleanbrain.me"));
+        configuration.setAllowedMethods(List.of("GET"));
+        configuration.setAllowedHeaders(List.of("*"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/deliveries/**", configuration);
+        source.registerCorsConfiguration("/api/targets/**", configuration);
+        source.registerCorsConfiguration("/api/metrics/**", configuration);
+        source.registerCorsConfiguration("/actuator/**", configuration);
+        return source;
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
