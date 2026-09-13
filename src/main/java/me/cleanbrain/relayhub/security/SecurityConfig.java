@@ -52,12 +52,13 @@ public class SecurityConfig {
     }
 
     /**
-     * developer.cleanbrain.me's RelayHub Live Lab reads this service's public, read-only
-     * observability endpoints (deliveries summary, targets, Prometheus-backed metrics, actuator
-     * health) directly from the browser — see that repo's ADR-0004. Scoped to GET only and to
-     * exactly that one origin; it grants no write access and no broader origin allowlist. These
-     * paths were already unauthenticated for same-origin requests (see the GET-is-public rule
-     * below) — this bean only lets a browser on a different origin read the response body too.
+     * developer.cleanbrain.me reads this service's public, read-only observability endpoints
+     * directly from the browser, including the real-time SSE activity stream that drives a ported
+     * version of this app's own Live topology animation — see that repo's ADR-0004. Scoped to GET
+     * only and to exactly that one origin; it grants no write access and no broader origin
+     * allowlist. These paths were already unauthenticated for same-origin requests (see the
+     * GET-is-public rule below) — this bean only lets a browser on a different origin read the
+     * response body (or, for /api/live/stream, the response stream) too.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -71,6 +72,13 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/api/targets/**", configuration);
         source.registerCorsConfiguration("/api/metrics/**", configuration);
         source.registerCorsConfiguration("/actuator/**", configuration);
+        // Added for the Live topology port (developer.cleanbrain.me): the topology diagram needs
+        // Sources/Targets/Subscriptions to lay out its nodes, the DLQ auto-replay countdown, and
+        // the SSE stream itself to animate in real time.
+        source.registerCorsConfiguration("/api/sources/**", configuration);
+        source.registerCorsConfiguration("/api/subscriptions/**", configuration);
+        source.registerCorsConfiguration("/api/dlq/**", configuration);
+        source.registerCorsConfiguration("/api/live/**", configuration);
         return source;
     }
 
