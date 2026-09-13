@@ -40,3 +40,14 @@ export async function fetchTodayCount(): Promise<number | null> {
     return null;
   }
 }
+
+export async function fetchAllTimeCount(): Promise<number | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/v1/visits/all?service=${SERVICE_ID}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { count: number };
+    return data.count;
+  } catch {
+    return null;
+  }
+}

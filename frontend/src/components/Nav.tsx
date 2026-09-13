@@ -2,20 +2,24 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { clearCredentials, isLoggedIn } from "../auth";
 import { useTheme } from "../theme";
-import { fetchTodayCount, recordVisitOnce } from "../visitorCounter";
+import { fetchAllTimeCount, fetchTodayCount, recordVisitOnce } from "../visitorCounter";
 
 export function Nav() {
   const navigate = useNavigate();
   const loggedIn = isLoggedIn();
   const [theme, toggleTheme] = useTheme();
   const [todayCount, setTodayCount] = useState<number | null>(null);
+  const [allTimeCount, setAllTimeCount] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       await recordVisitOnce();
-      const count = await fetchTodayCount();
-      if (!cancelled) setTodayCount(count);
+      const [today, allTime] = await Promise.all([fetchTodayCount(), fetchAllTimeCount()]);
+      if (!cancelled) {
+        setTodayCount(today);
+        setAllTimeCount(allTime);
+      }
     })();
     return () => {
       cancelled = true;
@@ -36,9 +40,11 @@ export function Nav() {
       <NavLink to="/subscriptions">Subscriptions</NavLink>
       <NavLink to="/deliveries">Deliveries</NavLink>
       <NavLink to="/live">Live</NavLink>
-      {todayCount !== null && (
-        <span className="nav-visitor-count" aria-label="Today's visitor count">
-          Today · {todayCount}
+      {(todayCount !== null || allTimeCount !== null) && (
+        <span className="nav-visitor-count" aria-label="Visitor count">
+          {todayCount !== null && <>Today · {todayCount}</>}
+          {todayCount !== null && allTimeCount !== null && " · "}
+          {allTimeCount !== null && <>All · {allTimeCount}</>}
         </span>
       )}
       <span className="nav-spacer" />
