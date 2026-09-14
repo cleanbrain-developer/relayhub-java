@@ -32,7 +32,7 @@ export async function recordVisitOnce(): Promise<void> {
     await fetch(`${BASE_URL}/v1/visits`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ service: SERVICE_ID }),
+      body: JSON.stringify({ service: SERVICE_ID, tz: clientTimeZone() }),
     });
   } catch {
     // Counter being unreachable must never affect the page itself.
