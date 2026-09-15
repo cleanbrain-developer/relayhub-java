@@ -4,30 +4,20 @@
 const BASE_URL =
   import.meta.env.VITE_VISITOR_COUNTER_URL ?? "https://visitor-counter.cleanbrain.me";
 const SERVICE_ID = "relayhub-java";
-const SESSION_PING_KEY_PREFIX = "cleanbrain-visitor-pinged:";
 
 function clientTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-// sessionStorage survives a refresh (it's only cleared when the tab
-// closes), so a plain "have I pinged this session" flag would never fire
-// again for a tab left open across local midnight -- keying it by the
-// browser's own local calendar date instead makes the guard reset exactly
-// when "today" does, without needing any date-comparison logic.
-function todaysPingKey(): string {
-  return SESSION_PING_KEY_PREFIX + new Date().toDateString();
-}
-
-export async function recordVisitOnce(): Promise<void> {
-  const pingKey = todaysPingKey();
-  try {
-    if (sessionStorage.getItem(pingKey)) return;
-    sessionStorage.setItem(pingKey, "1");
-  } catch {
-    // sessionStorage unavailable -- fall through and ping anyway.
-  }
-
+// No client-side "have I already pinged" guard: the backend already
+// dedups correctly on its own (Today counts distinct ip_hash+user_agent
+// within the day's range; All is a unique constraint on
+// service+ip_hash+user_agent+day), so a plain ping on every page load is
+// both simpler and more robust than trying to mirror that dedup logic
+// client-side with sessionStorage -- which is per-tab state, invisible
+// from the server, and silently permanent for the rest of the day if the
+// one attempt it allowed happened to fail.
+export async function recordVisit(): Promise<void> {
   try {
     await fetch(`${BASE_URL}/v1/visits`, {
       method: "POST",

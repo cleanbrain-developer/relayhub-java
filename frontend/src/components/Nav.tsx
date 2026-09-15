@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { clearCredentials, isLoggedIn } from "../auth";
 import { useTheme } from "../theme";
-import { fetchAllTimeCount, fetchTodayCount, recordVisitOnce } from "../visitorCounter";
+import { fetchAllTimeCount, fetchTodayCount, recordVisit } from "../visitorCounter";
 
 export function Nav() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ export function Nav() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      await recordVisitOnce();
+      await recordVisit();
       const [today, allTime] = await Promise.all([fetchTodayCount(), fetchAllTimeCount()]);
       if (!cancelled) {
         setTodayCount(today);
