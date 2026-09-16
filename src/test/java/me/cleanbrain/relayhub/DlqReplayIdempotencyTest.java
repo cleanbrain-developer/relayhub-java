@@ -137,11 +137,26 @@ class DlqReplayIdempotencyTest {
         assertThat(deliveryIdA).isNotNull();
         assertThat(deliveryIdB).isNotNull();
 
-        JsonNode attemptsB = objectMapper.readTree(getBody(baseUrl + "/api/deliveries/" + deliveryIdB + "/attempts"));
+        // Admin-only (self-review finding, 2026-09-17): an Attempt carries the real
+        // request/response bodies exchanged with a Target, unlike every other public GET here.
+        ResponseEntity<String> unauthenticatedAttempts = restTemplate.getForEntity(
+                baseUrl + "/api/deliveries/" + deliveryIdB + "/attempts", String.class);
+        assertThat(unauthenticatedAttempts.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        JsonNode attemptsB = objectMapper.readTree(getBodyAuthed(baseUrl + "/api/deliveries/" + deliveryIdB + "/attempts"));
         assertThat(attemptsB).hasSize(3);
         for (JsonNode attempt : attemptsB) {
             assertThat(attempt.get("status").asText()).isEqualTo("FAILED");
         }
+
+        String firstAttemptId = attemptsB.get(0).get("id").asText();
+        ResponseEntity<String> unauthenticatedAttemptDetail = restTemplate.getForEntity(
+                baseUrl + "/api/delivery-attempts/" + firstAttemptId, String.class);
+        assertThat(unauthenticatedAttemptDetail.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        JsonNode attemptDetail = objectMapper.readTree(getBodyAuthed(baseUrl + "/api/delivery-attempts/" + firstAttemptId));
+        assertThat(attemptDetail.get("requestMethod").asText()).isEqualTo("POST");
+        assertThat(attemptDetail.get("requestUrl").asText()).contains("/webhook-b");
 
         // Target B recovers; replay should now succeed.
         wireMockServer.stubFor(post(urlEqualTo("/webhook-b")).willReturn(aResponse().withStatus(200).withBody("ok")));
@@ -181,6 +196,14 @@ class DlqReplayIdempotencyTest {
 
     private String getBody(String url) {
         ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+        assertThat(response.getStatusCode().is2xxSuccessful())
+                .as("GET %s failed: %s", url, response.getBody())
+                .isTrue();
+        return response.getBody();
+    }
+
+    private String getBodyAuthed(String url) {
+        ResponseEntity<String> response = restTemplate.withBasicAuth("admin", "admin").getForEntity(url, String.class);
         assertThat(response.getStatusCode().is2xxSuccessful())
                 .as("GET %s failed: %s", url, response.getBody())
                 .isTrue();

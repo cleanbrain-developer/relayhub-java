@@ -295,7 +295,9 @@ export function LivePage() {
     setDetailAttemptId(attemptId);
     setDetailAttempt(null);
     setDetailError(null);
-    get<DeliveryAttempt>(`/api/delivery-attempts/${attemptId}`)
+    // Carries the real request/response bodies exchanged with a Target — admin-only (see
+    // SecurityConfig.java), unlike the rest of this page's live feed.
+    getAuthed<DeliveryAttempt>(`/api/delivery-attempts/${attemptId}`)
       .then(setDetailAttempt)
       .catch((e) => setDetailError((e as Error).message));
   }
@@ -868,14 +870,14 @@ export function LivePage() {
                 </td>
                 <td>{new Date(e.at).toLocaleTimeString()}</td>
                 <td>
-                  {e.attemptId && (
+                  {e.attemptId && loggedIn && (
                     <button onClick={() => toggleDetail(e.attemptId!)}>
                       {detailAttemptId === e.attemptId ? "Hide" : "Request/Response"}
                     </button>
                   )}
                 </td>
               </tr>
-              {detailAttemptId === e.attemptId && e.attemptId && (
+              {loggedIn && detailAttemptId === e.attemptId && e.attemptId && (
                 <tr>
                   <td colSpan={7}>
                     {detailError && <p className="error">{detailError}</p>}

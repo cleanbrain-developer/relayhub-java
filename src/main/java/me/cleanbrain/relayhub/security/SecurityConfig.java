@@ -98,6 +98,16 @@ public class SecurityConfig {
                         // not read-only observability data like /api/metrics/**, so its GET status
                         // check must also be excepted from the blanket "every GET is public" rule.
                         .requestMatchers(HttpMethod.GET, "/api/simulator/**").hasRole("ADMIN")
+                        // Unlike every other public GET in this app (metadata: names, statuses,
+                        // counts), an Attempt carries the actual request/response bodies exchanged
+                        // with a Target — real payload content, not just outcome. That's sensitive
+                        // enough to gate behind admin auth even though it's read-only (self-review
+                        // finding, 2026-09-17). Confirmed safe: developer.cleanbrain.me's ported
+                        // Live view (see the CORS bean above) reads /api/deliveries/summary and
+                        // /api/live/stream's attemptId field but never actually calls either of
+                        // these to resolve it, so this doesn't break that integration.
+                        .requestMatchers(HttpMethod.GET, "/api/deliveries/*/attempts").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/delivery-attempts/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .requestMatchers("/ingress/v1/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { get, post } from "../api";
+import { get, getAuthed, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Delivery, DeliveryAttempt, DeliveryState, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
@@ -40,14 +40,16 @@ export function DeliveriesPage() {
   }, []);
 
   useEffect(() => {
-    if (!expandedId) {
+    // Attempts carry the real request/response bodies exchanged with a Target — admin-only (see
+    // SecurityConfig.java), unlike the rest of this page's public delivery summary.
+    if (!expandedId || !loggedIn) {
       setAttempts([]);
       return;
     }
-    get<DeliveryAttempt[]>(`/api/deliveries/${expandedId}/attempts`)
+    getAuthed<DeliveryAttempt[]>(`/api/deliveries/${expandedId}/attempts`)
       .then(setAttempts)
       .catch((err) => setError((err as Error).message));
-  }, [expandedId]);
+  }, [expandedId, loggedIn]);
 
   function toggle(id: string) {
     setExpandedId(expandedId === id ? null : id);
@@ -112,11 +114,15 @@ export function DeliveriesPage() {
                   <td>{d.attemptCount}</td>
                   <td>{new Date(d.updatedAt).toLocaleString()}</td>
                   <td>
-                    <button onClick={() => toggle(d.id)}>{expandedId === d.id ? "Hide" : "Attempts"}</button>
+                    {loggedIn ? (
+                      <button onClick={() => toggle(d.id)}>{expandedId === d.id ? "Hide" : "Attempts"}</button>
+                    ) : (
+                      <span className="muted">Log in to view attempts</span>
+                    )}
                     {loggedIn && d.state === "DEAD" && <button onClick={() => replay(d.id)}>Replay</button>}
                   </td>
                 </tr>
-                {expandedId === d.id && (
+                {expandedId === d.id && loggedIn && (
                   <tr>
                     <td colSpan={5}>
                       <p className="muted" style={{ marginTop: 0 }}>
