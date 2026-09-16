@@ -7,6 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -28,6 +33,19 @@ import java.util.List;
  * had anything to replay — so DlqScheduleController's countdown stays accurate even when the
  * queue is empty. Exposed (not just internal) because the maintainer asked for the console to
  * show a literal countdown to the next sweep, not just its eventual effects.
+ *
+ * <p>Guarded by a Postgres session-level advisory lock (self-review finding, 2026-09-17): the
+ * Deployment runs a single replica today (see cleanbrain-me-infra), so this was latent, not yet
+ * observed — but without it, scaling to more than one replica would have every instance pull the
+ * same oldest-DEAD batch and call {@code deliveryService.replay} on the same delivery ids
+ * concurrently, i.e. real duplicate outbound calls to a Target, not just wasted work. A plain
+ * {@code @Transactional} + {@code pg_try_advisory_xact_lock} was considered and rejected: each
+ * {@code replay()} call is deliberately its own independent transaction (a mid-batch failure must
+ * not roll back earlier successful replays in the same tick), and wrapping the whole method in one
+ * outer transaction would merge them. Session-level {@code pg_try_advisory_lock}/{@code
+ * pg_advisory_unlock} on a dedicated, manually-held connection (not one borrowed from the
+ * `@Transactional`-managed pool) keeps the lock's lifetime independent of any individual replay's
+ * transaction.
  */
 @Component
 @RequiredArgsConstructor
@@ -35,8 +53,13 @@ public class DlqAutoReplayScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(DlqAutoReplayScheduler.class);
 
+    // Arbitrary but fixed — pg_advisory_lock keys are just int8s shared by convention among
+    // whoever uses them; this one is only ever used here, so any fixed value works.
+    private static final long LOCK_KEY = 4_921_733_001L;
+
     private final DeliveryRepository deliveryRepository;
     private final DeliveryService deliveryService;
+    private final DataSource dataSource;
 
     @Value("${relayhub.dlq.auto-replay-interval-ms:30000}")
     private long intervalMs;
@@ -45,16 +68,46 @@ public class DlqAutoReplayScheduler {
 
     @Scheduled(fixedDelayString = "${relayhub.dlq.auto-replay-interval-ms:30000}")
     public void replayDeadDeliveries() {
-        lastRunAt = Instant.now();
-        List<Delivery> deadDeliveries = deliveryRepository.findTop10ByStateOrderByUpdatedAtAsc(DeliveryState.DEAD);
-        for (Delivery delivery : deadDeliveries) {
-            try {
-                deliveryService.replay(delivery.getId());
-            } catch (Exception e) {
-                // One delivery's replay failing (e.g. it was manually replayed a moment ago and is
-                // no longer DEAD) must not stop the rest of this batch from being attempted.
-                log.warn("Auto-replay failed for delivery {}: {}", delivery.getId(), e.getMessage());
+        try (Connection lockConnection = dataSource.getConnection()) {
+            if (!tryAcquireLock(lockConnection)) {
+                log.debug("Another instance already holds the DLQ auto-replay lock; skipping this tick.");
+                return;
             }
+            try {
+                lastRunAt = Instant.now();
+                List<Delivery> deadDeliveries = deliveryRepository.findTop10ByStateOrderByUpdatedAtAsc(DeliveryState.DEAD);
+                for (Delivery delivery : deadDeliveries) {
+                    try {
+                        deliveryService.replay(delivery.getId());
+                    } catch (Exception e) {
+                        // One delivery's replay failing (e.g. it was manually replayed a moment ago and is
+                        // no longer DEAD) must not stop the rest of this batch from being attempted.
+                        log.warn("Auto-replay failed for delivery {}: {}", delivery.getId(), e.getMessage());
+                    }
+                }
+            } finally {
+                releaseLock(lockConnection);
+            }
+        } catch (SQLException e) {
+            log.warn("DLQ auto-replay tick skipped — could not acquire a connection for the advisory lock: {}", e.getMessage());
+        }
+    }
+
+    private boolean tryAcquireLock(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT pg_try_advisory_lock(?)")) {
+            statement.setLong(1, LOCK_KEY);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() && resultSet.getBoolean(1);
+            }
+        }
+    }
+
+    private void releaseLock(Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT pg_advisory_unlock(?)")) {
+            statement.setLong(1, LOCK_KEY);
+            statement.execute();
+        } catch (SQLException e) {
+            log.warn("Failed to release the DLQ auto-replay advisory lock (it will still auto-release when this connection closes): {}", e.getMessage());
         }
     }
 
