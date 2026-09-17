@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.delivery.DeliveryTaskMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -24,13 +25,29 @@ public class OutboxPublisher {
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
     public static final String TOPIC = "relayhub.delivery-tasks";
 
+    // Arbitrary but fixed, distinct from DlqAutoReplayScheduler's own lock key — see
+    // OutboxEventRepository.tryAdvisoryXactLock's Javadoc for why this one is safe to scope to a
+    // single transaction while that one isn't.
+    private static final long LOCK_KEY = 4_921_733_002L;
+
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, DeliveryTaskMessage> kafkaTemplate;
     private final MeterRegistry meterRegistry;
+    private final Environment environment;
 
     @Scheduled(fixedDelay = 200)
     @Transactional
     public void publishPending() {
+        // pg_try_advisory_xact_lock doesn't exist on H2 — the "test" profile's database (see
+        // ADR-0004: the same reason the test profile already skips Flyway/uses create-drop
+        // instead of validate). Postgres-only in practice anyway, since only a real deployment
+        // ever runs more than one replica.
+        boolean isTestProfile = environment.matchesProfiles("test");
+        if (!isTestProfile && !outboxEventRepository.tryAdvisoryXactLock(LOCK_KEY)) {
+            // Another replica already holds the lock this tick — its own poll covers the same
+            // rows, so there's nothing for this instance to do.
+            return;
+        }
         List<OutboxEvent> pending = outboxEventRepository.findTop50ByStatusOrderByCreatedAtAsc(OutboxStatus.PENDING);
         for (OutboxEvent outboxEvent : pending) {
             try {

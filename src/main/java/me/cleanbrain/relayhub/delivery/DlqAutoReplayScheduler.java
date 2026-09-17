@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -60,6 +61,7 @@ public class DlqAutoReplayScheduler {
     private final DeliveryRepository deliveryRepository;
     private final DeliveryService deliveryService;
     private final DataSource dataSource;
+    private final Environment environment;
 
     @Value("${relayhub.dlq.auto-replay-interval-ms:30000}")
     private long intervalMs;
@@ -68,28 +70,40 @@ public class DlqAutoReplayScheduler {
 
     @Scheduled(fixedDelayString = "${relayhub.dlq.auto-replay-interval-ms:30000}")
     public void replayDeadDeliveries() {
+        // pg_try_advisory_lock doesn't exist on H2 — the "test" profile's database (see
+        // ADR-0004: the same reason the test profile already skips Flyway/uses create-drop
+        // instead of validate). Postgres-only in practice anyway, since only a real deployment
+        // ever runs more than one replica; a test run has nothing to race against regardless.
+        if (environment.matchesProfiles("test")) {
+            runReplayBatch();
+            return;
+        }
         try (Connection lockConnection = dataSource.getConnection()) {
             if (!tryAcquireLock(lockConnection)) {
                 log.debug("Another instance already holds the DLQ auto-replay lock; skipping this tick.");
                 return;
             }
             try {
-                lastRunAt = Instant.now();
-                List<Delivery> deadDeliveries = deliveryRepository.findTop10ByStateOrderByUpdatedAtAsc(DeliveryState.DEAD);
-                for (Delivery delivery : deadDeliveries) {
-                    try {
-                        deliveryService.replay(delivery.getId());
-                    } catch (Exception e) {
-                        // One delivery's replay failing (e.g. it was manually replayed a moment ago and is
-                        // no longer DEAD) must not stop the rest of this batch from being attempted.
-                        log.warn("Auto-replay failed for delivery {}: {}", delivery.getId(), e.getMessage());
-                    }
-                }
+                runReplayBatch();
             } finally {
                 releaseLock(lockConnection);
             }
         } catch (SQLException e) {
             log.warn("DLQ auto-replay tick skipped — could not acquire a connection for the advisory lock: {}", e.getMessage());
+        }
+    }
+
+    private void runReplayBatch() {
+        lastRunAt = Instant.now();
+        List<Delivery> deadDeliveries = deliveryRepository.findTop10ByStateOrderByUpdatedAtAsc(DeliveryState.DEAD);
+        for (Delivery delivery : deadDeliveries) {
+            try {
+                deliveryService.replay(delivery.getId());
+            } catch (Exception e) {
+                // One delivery's replay failing (e.g. it was manually replayed a moment ago and is
+                // no longer DEAD) must not stop the rest of this batch from being attempted.
+                log.warn("Auto-replay failed for delivery {}: {}", delivery.getId(), e.getMessage());
+            }
         }
     }
 
