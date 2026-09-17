@@ -1,27 +1,33 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Nav } from "./components/Nav";
-import { DashboardPage } from "./pages/DashboardPage";
-import { SourcesPage } from "./pages/SourcesPage";
-import { TargetsPage } from "./pages/TargetsPage";
-import { SubscriptionsPage } from "./pages/SubscriptionsPage";
-import { DeliveriesPage } from "./pages/DeliveriesPage";
-import { LivePage } from "./pages/LivePage";
-import { LoginPage } from "./pages/LoginPage";
+
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const SourcesPage = lazy(() => import("./pages/SourcesPage").then((m) => ({ default: m.SourcesPage })));
+const TargetsPage = lazy(() => import("./pages/TargetsPage").then((m) => ({ default: m.TargetsPage })));
+const SubscriptionsPage = lazy(() =>
+  import("./pages/SubscriptionsPage").then((m) => ({ default: m.SubscriptionsPage })),
+);
+const DeliveriesPage = lazy(() => import("./pages/DeliveriesPage").then((m) => ({ default: m.DeliveriesPage })));
+const LivePage = lazy(() => import("./pages/LivePage").then((m) => ({ default: m.LivePage })));
+const LoginPage = lazy(() => import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })));
 
 export function App() {
   return (
     <BrowserRouter>
       <Nav />
       <main className="content">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/sources" element={<SourcesPage />} />
-          <Route path="/targets" element={<TargetsPage />} />
-          <Route path="/subscriptions" element={<SubscriptionsPage />} />
-          <Route path="/deliveries" element={<DeliveriesPage />} />
-          <Route path="/live" element={<LivePage />} />
-          <Route path="/login" element={<LoginPage />} />
-        </Routes>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/sources" element={<SourcesPage />} />
+            <Route path="/targets" element={<TargetsPage />} />
+            <Route path="/subscriptions" element={<SubscriptionsPage />} />
+            <Route path="/deliveries" element={<DeliveriesPage />} />
+            <Route path="/live" element={<LivePage />} />
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Suspense>
       </main>
     </BrowserRouter>
   );

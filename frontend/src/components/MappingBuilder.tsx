@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { get } from "../api";
+import { MappingRow, buildTemplate, parseTemplate } from "../mappingTemplate";
 import { SourceField, TargetField } from "../types";
-
-interface MappingRow {
-  field: string;
-  jsonPath: string;
-}
 
 interface Props {
   value: string;
@@ -18,36 +14,7 @@ interface Props {
   targetKey?: string;
 }
 
-const PLACEHOLDER_RE = /^\$\{(.+)\}$/;
 const CUSTOM = "__custom__";
-
-function parseTemplate(template: string): { rows: MappingRow[]; parseable: boolean } {
-  try {
-    const obj = JSON.parse(template || "{}");
-    if (typeof obj !== "object" || obj === null || Array.isArray(obj)) {
-      return { rows: [], parseable: false };
-    }
-    const rows = Object.entries(obj).map(([field, raw]) => {
-      const match = typeof raw === "string" ? raw.match(PLACEHOLDER_RE) : null;
-      return { field, jsonPath: match ? match[1] : String(raw) };
-    });
-    return { rows, parseable: true };
-  } catch {
-    return { rows: [], parseable: false };
-  }
-}
-
-function buildTemplate(rows: MappingRow[]): string {
-  const obj: Record<string, string> = {};
-  for (const row of rows) {
-    if (!row.field) continue;
-    // A bare "$.foo" or "$.foo.bar" reads as a JSONPath extraction; anything else (a literal
-    // like "true" or "fixed-value") is written through as-is, matching how existing templates
-    // in this codebase mix ${$.jsonpath} extractions with occasional literal fields.
-    obj[row.field] = row.jsonPath.trim().startsWith("$") ? `\${${row.jsonPath.trim()}}` : row.jsonPath;
-  }
-  return JSON.stringify(obj);
-}
 
 /**
  * Visual editor for Subscription.targetPayloadTemplate — this is the field-mapping step of
