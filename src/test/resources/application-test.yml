@@ -21,3 +21,15 @@ management:
   tracing:
     sampling:
       probability: 0.0
+
+relayhub:
+  dlq:
+    # An hour, not the 30s production default: @SpringBootTest contexts are cached and reused
+    # across test classes, so the cumulative wall-clock lifetime of one context across a full
+    # `./gradlew test` run can exceed 30s, letting the real @Scheduled trigger fire in the
+    # background mid-test against another test's still-in-progress DLQ scenario (e.g. replaying a
+    # delivery DlqReplayIdempotencyTest hasn't flipped its WireMock stub back to success for yet).
+    # Tests that need the scheduler's actual replay logic call
+    # DlqAutoReplayScheduler.replayDeadDeliveries() directly instead of waiting on this interval —
+    # see DlqAutoReplaySchedulerTest.
+    auto-replay-interval-ms: 3600000
