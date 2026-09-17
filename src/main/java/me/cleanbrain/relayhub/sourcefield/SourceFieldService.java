@@ -1,5 +1,7 @@
 package me.cleanbrain.relayhub.sourcefield;
 
+import com.jayway.jsonpath.InvalidPathException;
+import com.jayway.jsonpath.JsonPath;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
@@ -22,6 +24,7 @@ public class SourceFieldService {
     @Transactional
     public SourceField create(String sourceKey, String eventKey, SourceFieldCreateRequest request) {
         SourceEvent sourceEvent = sourceEventService.getBySourceKeyAndKey(sourceKey, eventKey);
+        validateJsonPath(request.jsonPath());
 
         sourceFieldRepository.findBySourceKeyAndEventKeyAndFieldKey(sourceKey, eventKey, request.key()).ifPresent(existing -> {
             throw new IllegalArgumentException(
@@ -56,6 +59,7 @@ public class SourceFieldService {
     @Transactional
     public SourceField update(String sourceKey, String eventKey, String fieldKey, SourceFieldUpdateRequest request) {
         SourceField field = getBySourceKeyAndEventKeyAndFieldKey(sourceKey, eventKey, fieldKey);
+        validateJsonPath(request.jsonPath());
         field.setJsonPath(request.jsonPath());
         field.setDataType(request.dataType());
         field.setDescription(request.description());
@@ -72,6 +76,18 @@ public class SourceFieldService {
     public void deactivate(String sourceKey, String eventKey, String fieldKey) {
         SourceField field = getBySourceKeyAndEventKeyAndFieldKey(sourceKey, eventKey, fieldKey);
         field.setStatus(Status.INACTIVE);
+    }
+
+    /** Registered here mainly to catch operator typos at creation time — IngressService evaluates
+     *  a Subscription's mapping template against a real payload at delivery time, where a malformed
+     *  path only surfaces as a runtime failure. This doesn't feed that mapping engine (see
+     *  deactivate()'s note); it just stops an obviously-broken jsonPath from ever being registered. */
+    private void validateJsonPath(String jsonPath) {
+        try {
+            JsonPath.compile(jsonPath);
+        } catch (InvalidPathException e) {
+            throw new IllegalArgumentException("Invalid JSONPath syntax: %s (%s)".formatted(jsonPath, e.getMessage()));
+        }
     }
 
     /** Permanently removes the row — admin-only. No dependents reference a SourceField's id (the

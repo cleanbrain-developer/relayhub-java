@@ -80,6 +80,25 @@ class FieldRegistryApiTest {
                 new HttpEntity<>(sourceFieldBody, headers), String.class);
         assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
+        // Malformed JSONPath syntax -> 400, on both create and update.
+        String invalidJsonPathBody = """
+                {"key":"badPath","jsonPath":"$.[","dataType":"STRING","description":"x",
+                 "exampleValue":"x","required":false,"sensitive":false}
+                """;
+        ResponseEntity<String> invalidCreate = admin.postForEntity(
+                baseUrl + "/api/sources/field-test-source/events/created/fields",
+                new HttpEntity<>(invalidJsonPathBody, headers), String.class);
+        assertThat(invalidCreate.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        String invalidJsonPathUpdate = """
+                {"jsonPath":"$.[","dataType":"STRING","description":"x","exampleValue":"x",
+                 "required":false,"sensitive":false}
+                """;
+        ResponseEntity<String> invalidUpdate = admin.exchange(
+                baseUrl + "/api/sources/field-test-source/events/created/fields/customerNo", HttpMethod.PUT,
+                new HttpEntity<>(invalidJsonPathUpdate, headers), String.class);
+        assertThat(invalidUpdate.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
         String targetFieldBody = """
                 {"key":"dealerId","dataType":"STRING","description":"Dealer id","exampleValue":"D-1",
                  "required":true,"sensitive":false}
