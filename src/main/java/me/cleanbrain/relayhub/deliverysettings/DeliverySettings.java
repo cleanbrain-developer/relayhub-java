@@ -35,5 +35,9 @@ public class DeliverySettings {
     /** How many attempts (including the first) before a Delivery is marked DEAD. */
     private int maxAttempts;
 
+    /** How often DlqAutoReplayScheduler sweeps the DLQ, in milliseconds. Null means "use the
+     *  relayhub.dlq.auto-replay-interval-ms default" — see DeliverySettingsService. */
+    private Long autoReplayIntervalMs;
+
     private Instant updatedAt;
 }

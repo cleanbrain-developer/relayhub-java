@@ -21,11 +21,13 @@ public class DeliverySettingsController {
 
     @GetMapping
     public DeliverySettingsResponse get() {
-        return new DeliverySettingsResponse(deliverySettingsService.getMaxAttempts());
+        return new DeliverySettingsResponse(
+                deliverySettingsService.getMaxAttempts(), deliverySettingsService.getAutoReplayIntervalMs());
     }
 
     @PutMapping
     public DeliverySettingsResponse update(@RequestBody DeliverySettingsUpdateRequest request) {
-        return new DeliverySettingsResponse(deliverySettingsService.updateMaxAttempts(request.maxAttempts()));
+        deliverySettingsService.updateSettings(request.maxAttempts(), request.autoReplayIntervalMs());
+        return get();
     }
 }

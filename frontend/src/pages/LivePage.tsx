@@ -231,6 +231,18 @@ export function LivePage() {
     }, delayMs + PULSE_DURATION_MS * 0.85);
   }
 
+  // Adjusts the DLQ count locally right when a pulse's impact actually lands (same 0.8 offset
+  // triggerShake uses for the dlq stage, so the number changes in step with what's on screen),
+  // instead of only ever learning the new count from scheduleDlqRefetch()'s debounced re-fetch —
+  // which reflects the same change eventually, but on the network's schedule, not the missile's
+  // (maintainer request 2026-09-18: the count should update exactly when a missile enters/leaves
+  // the DLQ, not some arbitrary moment after).
+  function bumpDeadCountAtImpact(delta: number, delayMs: number) {
+    window.setTimeout(() => {
+      setDeadCount((prev) => (prev === null ? prev : Math.max(0, prev + delta)));
+    }, delayMs + PULSE_DURATION_MS * 0.8);
+  }
+
   useEffect(() => {
     // ACTIVE only — a deactivated Source/Target can't actually produce traffic (Subscriptions
     // built on it are excluded from delivery too), so it has no place on a *live* traffic map.
@@ -502,14 +514,21 @@ export function LivePage() {
         );
         lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
         // Routed explicitly through the Hub node (not a direct Event->Target arc) so the flight
-        // visibly passes through RelayHub instead of appearing to skip over it.
-        const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, kind, event.replay);
+        // visibly passes through RelayHub instead of appearing to skip over it. A replay (manual
+        // or auto — both go through DeliveryService.replay, see LiveEvent.replay) launches from
+        // the DLQ node instead of the Event node: the item being retried is actually leaving the
+        // DLQ right now, not arriving fresh from a Source Event (maintainer request 2026-09-18).
+        const origin = event.replay ? dlqPos : eventPos ?? hub;
+        const spawn = () => spawnPulse([origin, hub, to], color, kind, event.replay);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
         triggerNodeHit(`tgt:${event.targetKey}`, delay);
         if (event.status === "failed") triggerShake(delay);
         // Only a replay that *succeeded* actually changed the DLQ count (it just left the
         // queue) — a replay that failed again was already DEAD and stays DEAD.
-        if (event.replay && event.status === "success") scheduleDlqRefetch();
+        if (event.replay && event.status === "success") {
+          bumpDeadCountAtImpact(-1, delay);
+          scheduleDlqRefetch();
+        }
       } else if (event.stage === "dlq") {
         const deliveryKey = `${ingressKey}:${event.targetKey}`;
         // Waits for the failed delivery attempt that caused this to actually land at its Target
@@ -520,6 +539,7 @@ export function LivePage() {
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
         triggerNodeHit("dlq", delay);
         triggerShake(delay);
+        bumpDeadCountAtImpact(1, delay);
         scheduleDlqRefetch();
       }
     });

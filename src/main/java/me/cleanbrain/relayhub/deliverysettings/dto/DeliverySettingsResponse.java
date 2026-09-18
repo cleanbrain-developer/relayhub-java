@@ -1,4 +1,4 @@
 package me.cleanbrain.relayhub.deliverysettings.dto;
 
-public record DeliverySettingsResponse(int maxAttempts) {
+public record DeliverySettingsResponse(int maxAttempts, long autoReplayIntervalMs) {
 }

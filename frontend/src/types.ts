@@ -127,4 +127,5 @@ export interface DeliverySummary {
 
 export interface DeliverySettings {
   maxAttempts: number;
+  autoReplayIntervalMs: number;
 }

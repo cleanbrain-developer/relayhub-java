@@ -20,20 +20,24 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The retry-before-DLQ threshold was a hardcoded constant (DeliveryService.MAX_ATTEMPTS) that an
- * operator had no way to see or change without a redeploy (maintainer request 2026-09-18). This
- * covers the new GET (public, default 3) / PUT (admin-only, range-validated) API, plus an
- * end-to-end check that DeliveryService.deliver() actually reads the configured value rather than
- * a stale constant.
+ * The retry-before-DLQ threshold and the DLQ auto-replay interval were both hardcoded
+ * (DeliveryService.MAX_ATTEMPTS, relayhub.dlq.auto-replay-interval-ms) — invisible to operators
+ * and only changeable via a redeploy (maintainer request 2026-09-18). This covers the combined
+ * GET (public) / PUT (admin-only, both fields range-validated) API, plus an end-to-end check that
+ * DeliveryService.deliver() actually reads the configured maxAttempts rather than a stale
+ * constant. DlqAutoReplaySchedulerTest covers the interval side end-to-end.
  *
- * <p>Resets the setting back to the default (3) in @AfterEach — the H2 test database is shared
- * across test classes in the same run (DB_CLOSE_DELAY=-1), so leaving it mutated would make
- * DlqReplayIdempotencyTest's "attemptCount == 3" assertion order-dependent.
+ * <p>Resets both fields back to their defaults in @AfterEach — the H2 test database is shared
+ * across test classes in the same run (DB_CLOSE_DELAY=-1), so leaving them mutated would make
+ * DlqReplayIdempotencyTest's "attemptCount == 3" assertion (and the auto-replay interval other
+ * tests implicitly rely on staying at the 1-hour test-profile default) order-dependent.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EmbeddedKafka(partitions = 1, topics = "relayhub.delivery-tasks")
 @ActiveProfiles("test")
 class DeliverySettingsApiTest {
+
+    private static final String DEFAULT_BODY = "{\"maxAttempts\":3,\"autoReplayIntervalMs\":3600000}";
 
     @LocalServerPort
     int port;
@@ -48,51 +52,61 @@ class DeliverySettingsApiTest {
         String baseUrl = "http://localhost:" + port;
         restTemplate.withBasicAuth("admin", "admin")
                 .exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
-                        new HttpEntity<>("{\"maxAttempts\":3}", jsonHeaders()), String.class);
+                        new HttpEntity<>(DEFAULT_BODY, jsonHeaders()), String.class);
     }
 
     @Test
-    void defaultsToThreeAndIsPublicallyReadable() {
+    void defaultsMatchApplicationTestYmlAndArePubliclyReadable() {
         String baseUrl = "http://localhost:" + port;
         ResponseEntity<String> response = restTemplate.getForEntity(baseUrl + "/api/delivery-settings", String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("\"maxAttempts\":3");
+        assertThat(response.getBody()).contains("\"maxAttempts\":3").contains("\"autoReplayIntervalMs\":3600000");
     }
 
     @Test
-    void updateRequiresAuthAndIsValidated() throws Exception {
+    void updateRequiresAuthAndValidatesBothFields() throws Exception {
         String baseUrl = "http://localhost:" + port;
         TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
 
         ResponseEntity<String> unauthenticated = restTemplate.exchange(baseUrl + "/api/delivery-settings",
-                HttpMethod.PUT, new HttpEntity<>("{\"maxAttempts\":5}", jsonHeaders()), String.class);
+                HttpMethod.PUT, new HttpEntity<>("{\"maxAttempts\":5,\"autoReplayIntervalMs\":60000}", jsonHeaders()),
+                String.class);
         assertThat(unauthenticated.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        ResponseEntity<String> tooLow = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
-                new HttpEntity<>("{\"maxAttempts\":0}", jsonHeaders()), String.class);
-        assertThat(tooLow.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        ResponseEntity<String> attemptsTooLow = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
+                new HttpEntity<>("{\"maxAttempts\":0,\"autoReplayIntervalMs\":60000}", jsonHeaders()), String.class);
+        assertThat(attemptsTooLow.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
-        ResponseEntity<String> tooHigh = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
-                new HttpEntity<>("{\"maxAttempts\":11}", jsonHeaders()), String.class);
-        assertThat(tooHigh.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        ResponseEntity<String> attemptsTooHigh = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
+                new HttpEntity<>("{\"maxAttempts\":11,\"autoReplayIntervalMs\":60000}", jsonHeaders()), String.class);
+        assertThat(attemptsTooHigh.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<String> intervalTooLow = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
+                new HttpEntity<>("{\"maxAttempts\":5,\"autoReplayIntervalMs\":1000}", jsonHeaders()), String.class);
+        assertThat(intervalTooLow.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        ResponseEntity<String> intervalTooHigh = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
+                new HttpEntity<>("{\"maxAttempts\":5,\"autoReplayIntervalMs\":7200000}", jsonHeaders()), String.class);
+        assertThat(intervalTooHigh.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
         ResponseEntity<String> updated = admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
-                new HttpEntity<>("{\"maxAttempts\":5}", jsonHeaders()), String.class);
+                new HttpEntity<>("{\"maxAttempts\":5,\"autoReplayIntervalMs\":60000}", jsonHeaders()), String.class);
         assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode updatedJson = objectMapper.readTree(updated.getBody());
         assertThat(updatedJson.get("maxAttempts").asInt()).isEqualTo(5);
+        assertThat(updatedJson.get("autoReplayIntervalMs").asLong()).isEqualTo(60000);
 
         ResponseEntity<String> reread = restTemplate.getForEntity(baseUrl + "/api/delivery-settings", String.class);
-        assertThat(reread.getBody()).contains("\"maxAttempts\":5");
+        assertThat(reread.getBody()).contains("\"maxAttempts\":5").contains("\"autoReplayIntervalMs\":60000");
     }
 
     @Test
-    void deliveryServiceActuallyHonorsTheConfiguredValue() {
+    void deliveryServiceActuallyHonorsTheConfiguredMaxAttempts() {
         String baseUrl = "http://localhost:" + port;
         TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
 
         admin.exchange(baseUrl + "/api/delivery-settings", HttpMethod.PUT,
-                new HttpEntity<>("{\"maxAttempts\":1}", jsonHeaders()), String.class);
+                new HttpEntity<>("{\"maxAttempts\":1,\"autoReplayIntervalMs\":3600000}", jsonHeaders()), String.class);
 
         postJson(admin, baseUrl + "/api/sources", """
                 {"key":"settings-verify-source","name":"Settings Verify Source","description":"x"}

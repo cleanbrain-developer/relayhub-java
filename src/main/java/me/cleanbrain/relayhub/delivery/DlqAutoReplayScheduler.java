@@ -1,9 +1,9 @@
 package me.cleanbrain.relayhub.delivery;
 
 import lombok.RequiredArgsConstructor;
+import me.cleanbrain.relayhub.deliverysettings.DeliverySettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -23,17 +23,22 @@ import java.util.List;
  * admin console's Live page can show DLQ items actually leaving the queue over time, not just
  * accumulating in it.
  *
- * <p>Bounded to 10 oldest DEAD deliveries per tick (see DeliveryRepository.findTop10ByStateOrderByUpdatedAtAsc)
- * and a 30s default interval (relayhub.dlq.auto-replay-interval-ms) so a large or persistently
- * failing backlog can't turn this into a tight retry storm against an already-struggling Target.
- * Each delivery goes through the exact same DeliveryService.replay used by the manual Replay
- * button, so it gets the same one-attempt-per-call semantics and the same "delivery" live-activity
- * broadcast.
+ * <p>Bounded to 10 oldest DEAD deliveries per sweep (see DeliveryRepository.findTop10ByStateOrderByUpdatedAtAsc)
+ * and an admin-configurable interval (DeliverySettingsService.getAutoReplayIntervalMs(), 30s by
+ * default — see relayhub.dlq.auto-replay-interval-ms) so a large or persistently failing backlog
+ * can't turn this into a tight retry storm against an already-struggling Target. Each delivery
+ * goes through the exact same DeliveryService.replay used by the manual Replay button, so it gets
+ * the same one-attempt-per-call semantics and the same "delivery" live-activity broadcast.
  *
- * <p>{@code lastRunAt} is updated at the very top of every tick — regardless of whether the DLQ
- * had anything to replay — so DlqScheduleController's countdown stays accurate even when the
- * queue is empty. Exposed (not just internal) because the maintainer asked for the console to
- * show a literal countdown to the next sweep, not just its eventual effects.
+ * <p>The interval is configurable at runtime (maintainer request 2026-09-18), not just at
+ * startup, so a Spring {@code @Scheduled} annotation bound to a fixed property string won't do —
+ * that's resolved once when the task is registered. Instead this ticks on a short, fixed 1s
+ * cadence and self-gates: each tick reads the *current* configured interval and only runs a sweep
+ * once that much time has actually elapsed since {@code lastRunAt}. {@code lastRunAt} is updated
+ * at the top of every sweep that actually runs — regardless of whether the DLQ had anything to
+ * replay — so DlqScheduleController's countdown stays accurate even when the queue is empty.
+ * Exposed (not just internal) because the maintainer asked for the console to show a literal
+ * countdown to the next sweep, not just its eventual effects.
  *
  * <p>Guarded by a Postgres session-level advisory lock (self-review finding, 2026-09-17): the
  * Deployment runs a single replica today (see cleanbrain-me-infra), so this was latent, not yet
@@ -58,17 +63,29 @@ public class DlqAutoReplayScheduler {
     // whoever uses them; this one is only ever used here, so any fixed value works.
     private static final long LOCK_KEY = 4_921_733_001L;
 
+    // How often the self-gating check itself runs — an implementation-internal poll granularity,
+    // not the (admin-configurable) auto-replay interval a sweep actually waits for.
+    private static final long TICK_MS = 1000;
+
     private final DeliveryRepository deliveryRepository;
     private final DeliveryService deliveryService;
     private final DataSource dataSource;
     private final Environment environment;
-
-    @Value("${relayhub.dlq.auto-replay-interval-ms:30000}")
-    private long intervalMs;
+    private final DeliverySettingsService deliverySettingsService;
 
     private volatile Instant lastRunAt = Instant.now();
 
-    @Scheduled(fixedDelayString = "${relayhub.dlq.auto-replay-interval-ms:30000}")
+    @Scheduled(fixedDelay = TICK_MS)
+    public void tick() {
+        Instant dueAt = lastRunAt.plusMillis(deliverySettingsService.getAutoReplayIntervalMs());
+        if (Instant.now().isBefore(dueAt)) {
+            return;
+        }
+        replayDeadDeliveries();
+    }
+
+    /** The actual sweep — also called directly by tests instead of waiting on tick()'s interval
+     *  gate (see DlqAutoReplaySchedulerTest). */
     public void replayDeadDeliveries() {
         // pg_try_advisory_lock doesn't exist on H2 — the "test" profile's database (see
         // ADR-0004: the same reason the test profile already skips Flyway/uses create-drop
@@ -80,7 +97,7 @@ public class DlqAutoReplayScheduler {
         }
         try (Connection lockConnection = dataSource.getConnection()) {
             if (!tryAcquireLock(lockConnection)) {
-                log.debug("Another instance already holds the DLQ auto-replay lock; skipping this tick.");
+                log.debug("Another instance already holds the DLQ auto-replay lock; skipping this sweep.");
                 return;
             }
             try {
@@ -89,7 +106,7 @@ public class DlqAutoReplayScheduler {
                 releaseLock(lockConnection);
             }
         } catch (SQLException e) {
-            log.warn("DLQ auto-replay tick skipped — could not acquire a connection for the advisory lock: {}", e.getMessage());
+            log.warn("DLQ auto-replay sweep skipped — could not acquire a connection for the advisory lock: {}", e.getMessage());
         }
     }
 
@@ -126,7 +143,7 @@ public class DlqAutoReplayScheduler {
     }
 
     public long getIntervalMs() {
-        return intervalMs;
+        return deliverySettingsService.getAutoReplayIntervalMs();
     }
 
     public Instant getLastRunAt() {

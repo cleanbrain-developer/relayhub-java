@@ -122,6 +122,26 @@ class DlqAutoReplaySchedulerTest {
         Instant lastRunAt = Instant.parse(schedule.get("lastRunAt").asText());
         Instant nextRunAt = Instant.parse(schedule.get("nextRunAt").asText());
         assertThat(nextRunAt).isEqualTo(lastRunAt.plusMillis(scheduler.getIntervalMs()));
+
+        // The interval is admin-configurable at runtime (maintainer request 2026-09-18) — reading
+        // scheduler.getIntervalMs() must reflect a change made through the API immediately, not a
+        // value snapshotted once at startup (the old @Value-bound @Scheduled property string).
+        try {
+            TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
+            admin.exchange(baseUrl + "/api/delivery-settings", org.springframework.http.HttpMethod.PUT,
+                    new HttpEntity<>("{\"maxAttempts\":3,\"autoReplayIntervalMs\":45000}", jsonHeaders()), String.class);
+            assertThat(scheduler.getIntervalMs()).isEqualTo(45000);
+        } finally {
+            TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
+            admin.exchange(baseUrl + "/api/delivery-settings", org.springframework.http.HttpMethod.PUT,
+                    new HttpEntity<>("{\"maxAttempts\":3,\"autoReplayIntervalMs\":3600000}", jsonHeaders()), String.class);
+        }
+    }
+
+    private HttpHeaders jsonHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
     }
 
     private static final class AtomicDeliveryId {

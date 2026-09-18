@@ -25,8 +25,10 @@ export function DeliveriesPage() {
   const [eventError, setEventError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
+  const [autoReplayIntervalMs, setAutoReplayIntervalMs] = useState<number | null>(null);
   const [editingPolicy, setEditingPolicy] = useState(false);
-  const [policyForm, setPolicyForm] = useState("");
+  const [maxAttemptsForm, setMaxAttemptsForm] = useState("");
+  const [autoReplaySecondsForm, setAutoReplaySecondsForm] = useState("");
   const [policyError, setPolicyError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
@@ -56,7 +58,10 @@ export function DeliveriesPage() {
 
   function loadPolicy() {
     get<DeliverySettings>("/api/delivery-settings")
-      .then((s) => setMaxAttempts(s.maxAttempts))
+      .then((s) => {
+        setMaxAttempts(s.maxAttempts);
+        setAutoReplayIntervalMs(s.autoReplayIntervalMs);
+      })
       .catch(() => {});
   }
 
@@ -65,12 +70,19 @@ export function DeliveriesPage() {
   async function savePolicy(e: FormEvent) {
     e.preventDefault();
     setPolicyError(null);
-    const parsed = Number(policyForm);
+    const parsedMaxAttempts = Number(maxAttemptsForm);
+    const parsedIntervalMs = Number(autoReplaySecondsForm) * 1000;
     try {
-      const updated = await put<DeliverySettings>("/api/delivery-settings", { maxAttempts: parsed });
+      const updated = await put<DeliverySettings>("/api/delivery-settings", {
+        maxAttempts: parsedMaxAttempts,
+        autoReplayIntervalMs: parsedIntervalMs,
+      });
       setMaxAttempts(updated.maxAttempts);
+      setAutoReplayIntervalMs(updated.autoReplayIntervalMs);
       setEditingPolicy(false);
-      notify(`Retry policy updated — up to ${updated.maxAttempts} attempt(s) before DEAD.`);
+      notify(
+        `Retry policy updated — up to ${updated.maxAttempts} attempt(s) before DEAD, auto-replay every ${Math.round(updated.autoReplayIntervalMs / 1000)}s.`
+      );
     } catch (err) {
       setPolicyError((err as Error).message);
       notify((err as Error).message, "error");
@@ -134,12 +146,14 @@ export function DeliveriesPage() {
           <div className="page-header" style={{ marginBottom: 0 }}>
             <span>
               Retry policy: up to <strong>{maxAttempts ?? "?"}</strong> attempt(s) before a Delivery is marked{" "}
-              <strong>DEAD</strong> (DLQ).
+              <strong>DEAD</strong> (DLQ). Auto-replay sweeps the DLQ every{" "}
+              <strong>{autoReplayIntervalMs !== null ? Math.round(autoReplayIntervalMs / 1000) : "?"}s</strong>.
             </span>
-            {loggedIn && maxAttempts !== null && (
+            {loggedIn && maxAttempts !== null && autoReplayIntervalMs !== null && (
               <button
                 onClick={() => {
-                  setPolicyForm(String(maxAttempts));
+                  setMaxAttemptsForm(String(maxAttempts));
+                  setAutoReplaySecondsForm(String(Math.round(autoReplayIntervalMs / 1000)));
                   setPolicyError(null);
                   setEditingPolicy(true);
                 }}
@@ -157,8 +171,19 @@ export function DeliveriesPage() {
                 min={1}
                 max={10}
                 required
-                value={policyForm}
-                onChange={(e) => setPolicyForm(e.target.value)}
+                value={maxAttemptsForm}
+                onChange={(e) => setMaxAttemptsForm(e.target.value)}
+              />
+            </label>
+            <label>
+              Auto-replay every (seconds)
+              <input
+                type="number"
+                min={5}
+                max={3600}
+                required
+                value={autoReplaySecondsForm}
+                onChange={(e) => setAutoReplaySecondsForm(e.target.value)}
               />
             </label>
             <button type="submit" className="btn-primary">
