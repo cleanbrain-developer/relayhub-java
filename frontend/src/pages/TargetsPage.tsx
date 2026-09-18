@@ -4,11 +4,13 @@ import { isLoggedIn } from "../auth";
 import { Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { FieldRegistryEditor } from "../components/FieldRegistryEditor";
+import { useToast } from "../toast";
 
 const emptyForm = { key: "", name: "", description: "", baseUrl: "", authenticationConfig: "" };
 
 export function TargetsPage() {
   const [targets, setTargets] = useState<Target[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
@@ -17,9 +19,13 @@ export function TargetsPage() {
   const [editForm, setEditForm] = useState({ name: "", description: "", baseUrl: "", authenticationConfig: "" });
   const [fieldsOpenKey, setFieldsOpenKey] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
+  const { notify } = useToast();
 
   function reload() {
-    get<Target[]>("/api/targets").then(setTargets).catch((err) => setError((err as Error).message));
+    get<Target[]>("/api/targets")
+      .then(setTargets)
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
   }
 
   useEffect(reload, []);
@@ -32,8 +38,10 @@ export function TargetsPage() {
       setForm(emptyForm);
       setShowCreate(false);
       reload();
+      notify(`Target "${form.key}" created.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -48,8 +56,10 @@ export function TargetsPage() {
       await put(`/api/targets/${key}`, editForm);
       setEditingKey(null);
       reload();
+      notify(`Target "${key}" updated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -59,8 +69,10 @@ export function TargetsPage() {
     try {
       await del(`/api/targets/${key}`);
       reload();
+      notify(`Target "${key}" deactivated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -71,8 +83,10 @@ export function TargetsPage() {
     try {
       await del(`/api/targets/${key}?hard=true`);
       reload();
+      notify(`Target "${key}" permanently deleted.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -194,7 +208,8 @@ export function TargetsPage() {
             )}
           </div>
         ))}
-        {targets.filter((t) => showInactive || t.status === "ACTIVE").length === 0 && (
+        {loading && <p className="muted">Loading Targets...</p>}
+        {!loading && targets.filter((t) => showInactive || t.status === "ACTIVE").length === 0 && (
           <p className="muted">{targets.length === 0 ? "No Targets yet." : "No active Targets — try “Show deactivated”."}</p>
         )}
       </div>

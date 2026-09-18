@@ -3,6 +3,7 @@ import { del, get, post, put } from "../api";
 import { Operation, SourceEvent } from "../types";
 import { StatusBadge } from "./StatusBadge";
 import { FieldRegistryEditor } from "./FieldRegistryEditor";
+import { useToast } from "../toast";
 
 interface Props {
   sourceKey: string;
@@ -62,17 +63,20 @@ function toFormState(ev: SourceEvent): EventFormState {
  */
 export function SourceEventFields({ sourceKey, loggedIn }: Props) {
   const [events, setEvents] = useState<SourceEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState<EventFormState>(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EventFormState>(emptyForm);
+  const { notify } = useToast();
 
   function reload() {
     get<SourceEvent[]>(`/api/sources/${sourceKey}/events`)
       .then(setEvents)
-      .catch((err) => setError((err as Error).message));
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
   }
 
   useEffect(reload, [sourceKey]);
@@ -92,8 +96,10 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
       setForm(emptyForm);
       setShowCreate(false);
       reload();
+      notify(`Source Event "${form.key}" created.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -119,8 +125,10 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
       });
       setEditingKey(null);
       reload();
+      notify(`Source Event "${key}" updated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -130,8 +138,10 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
     try {
       await del(`/api/sources/${sourceKey}/events/${key}`);
       reload();
+      notify(`Source Event "${key}" deactivated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -146,8 +156,10 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
     try {
       await del(`/api/sources/${sourceKey}/events/${key}?hard=true`);
       reload();
+      notify(`Source Event "${key}" permanently deleted.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -266,7 +278,8 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
         </form>
       )}
 
-      {visible.length === 0 && (
+      {loading && <p className="muted">Loading Source Events...</p>}
+      {!loading && visible.length === 0 && (
         <p className="muted">
           {events.length === 0 ? "No Source Events registered for this Source yet." : "No active Source Events — try “Show deactivated events”."}
         </p>

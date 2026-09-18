@@ -5,6 +5,7 @@ import { isLoggedIn } from "../auth";
 import { Delivery, DeliveryAttempt, DeliveryState, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { AttemptDetail } from "../components/AttemptDetail";
+import { useToast } from "../toast";
 
 const STATES: (DeliveryState | "ALL")[] = ["ALL", "PENDING", "SUCCEEDED", "DEAD"];
 
@@ -13,12 +14,14 @@ export function DeliveriesPage() {
   const highlight = params.get("highlight");
   const [stateFilter, setStateFilter] = useState<DeliveryState | "ALL">("ALL");
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<Target[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(highlight);
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [detailAttemptId, setDetailAttemptId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
+  const { notify } = useToast();
 
   const targetKeyById = useMemo(() => Object.fromEntries(targets.map((t) => [t.id, t.key])), [targets]);
 
@@ -30,8 +33,12 @@ export function DeliveriesPage() {
   }, [highlight]);
 
   function reload() {
+    setLoading(true);
     const query = stateFilter === "ALL" ? "" : `?state=${stateFilter}`;
-    get<Delivery[]>(`/api/deliveries${query}`).then(setDeliveries).catch((err) => setError((err as Error).message));
+    get<Delivery[]>(`/api/deliveries${query}`)
+      .then(setDeliveries)
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
   }
 
   useEffect(reload, [stateFilter]);
@@ -61,12 +68,15 @@ export function DeliveriesPage() {
   }
 
   async function replay(id: string) {
+    if (!confirm("Replay this Delivery? This makes one more real attempt against the live Target.")) return;
     setError(null);
     try {
       await post(`/api/deliveries/${id}/replay`, null);
       reload();
+      notify("Replay triggered.");
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -178,6 +188,8 @@ export function DeliveriesPage() {
           })}
         </tbody>
       </table>
+      {loading && <p className="muted">Loading Deliveries...</p>}
+      {!loading && deliveries.length === 0 && <p className="muted">No Deliveries yet.</p>}
     </div>
   );
 }

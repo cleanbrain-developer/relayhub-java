@@ -4,6 +4,7 @@ import { isLoggedIn } from "../auth";
 import { HttpVerb, Source, SourceEvent, Subscription, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { MappingBuilder } from "../components/MappingBuilder";
+import { useToast } from "../toast";
 
 const HTTP_VERBS: HttpVerb[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
@@ -21,9 +22,11 @@ const emptyForm = {
 
 export function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sources, setSources] = useState<Source[]>([]);
   const [targets, setTargets] = useState<Target[]>([]);
   const [events, setEvents] = useState<SourceEvent[]>([]);
+  const [dropdownError, setDropdownError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
@@ -38,15 +41,23 @@ export function SubscriptionsPage() {
     retryPolicy: "",
   });
   const loggedIn = isLoggedIn();
+  const { notify } = useToast();
 
   function reload() {
-    get<Subscription[]>("/api/subscriptions").then(setSubscriptions).catch((err) => setError((err as Error).message));
+    get<Subscription[]>("/api/subscriptions")
+      .then(setSubscriptions)
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
     reload();
-    get<Source[]>("/api/sources").then(setSources).catch(() => {});
-    get<Target[]>("/api/targets").then(setTargets).catch(() => {});
+    get<Source[]>("/api/sources")
+      .then(setSources)
+      .catch(() => setDropdownError("Couldn't load Sources for the create form — try reloading the page."));
+    get<Target[]>("/api/targets")
+      .then(setTargets)
+      .catch(() => setDropdownError("Couldn't load Targets for the create form — try reloading the page."));
   }, []);
 
   useEffect(() => {
@@ -54,7 +65,12 @@ export function SubscriptionsPage() {
       setEvents([]);
       return;
     }
-    get<SourceEvent[]>(`/api/sources/${form.sourceKey}/events`).then(setEvents).catch(() => setEvents([]));
+    get<SourceEvent[]>(`/api/sources/${form.sourceKey}/events`)
+      .then(setEvents)
+      .catch(() => {
+        setEvents([]);
+        setDropdownError("Couldn't load Source Events for the selected Source — try reloading the page.");
+      });
   }, [form.sourceKey]);
 
   async function handleCreate(e: FormEvent) {
@@ -66,8 +82,10 @@ export function SubscriptionsPage() {
       setForm(emptyForm);
       setShowCreate(false);
       reload();
+      notify(`Subscription "${form.name}" created.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -89,8 +107,10 @@ export function SubscriptionsPage() {
       await put(`/api/subscriptions/${id}`, editForm);
       setEditingId(null);
       reload();
+      notify("Subscription updated.");
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -100,8 +120,10 @@ export function SubscriptionsPage() {
     try {
       await del(`/api/subscriptions/${id}`);
       reload();
+      notify("Subscription deactivated.");
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -111,8 +133,10 @@ export function SubscriptionsPage() {
     try {
       await del(`/api/subscriptions/${id}?hard=true`);
       reload();
+      notify("Subscription permanently deleted.");
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -135,6 +159,7 @@ export function SubscriptionsPage() {
 
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
+          {dropdownError && <p className="error">{dropdownError}</p>}
           <div className="form-grid">
             <label>
               Source
@@ -319,7 +344,8 @@ export function SubscriptionsPage() {
             )}
           </div>
         ))}
-        {subscriptions.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
+        {loading && <p className="muted">Loading Subscriptions...</p>}
+        {!loading && subscriptions.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
           <p className="muted">
             {subscriptions.length === 0 ? "No Subscriptions yet." : "No active Subscriptions — try “Show deactivated”."}
           </p>

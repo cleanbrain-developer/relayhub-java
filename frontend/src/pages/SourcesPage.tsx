@@ -4,11 +4,13 @@ import { isLoggedIn } from "../auth";
 import { Source } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { SourceEventFields } from "../components/SourceEventFields";
+import { useToast } from "../toast";
 
 const emptyForm = { key: "", name: "", description: "", authenticationConfig: "" };
 
 export function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
@@ -17,9 +19,13 @@ export function SourcesPage() {
   const [editForm, setEditForm] = useState({ name: "", description: "", authenticationConfig: "" });
   const [fieldsOpenKey, setFieldsOpenKey] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
+  const { notify } = useToast();
 
   function reload() {
-    get<Source[]>("/api/sources").then(setSources).catch((err) => setError((err as Error).message));
+    get<Source[]>("/api/sources")
+      .then(setSources)
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
   }
 
   useEffect(reload, []);
@@ -32,8 +38,10 @@ export function SourcesPage() {
       setForm(emptyForm);
       setShowCreate(false);
       reload();
+      notify(`Source "${form.key}" created.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -48,8 +56,10 @@ export function SourcesPage() {
       await put(`/api/sources/${key}`, editForm);
       setEditingKey(null);
       reload();
+      notify(`Source "${key}" updated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -59,8 +69,10 @@ export function SourcesPage() {
     try {
       await del(`/api/sources/${key}`);
       reload();
+      notify(`Source "${key}" deactivated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -71,8 +83,10 @@ export function SourcesPage() {
     try {
       await del(`/api/sources/${key}?hard=true`);
       reload();
+      notify(`Source "${key}" permanently deleted.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -185,7 +199,8 @@ export function SourcesPage() {
             )}
           </div>
         ))}
-        {sources.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
+        {loading && <p className="muted">Loading Sources...</p>}
+        {!loading && sources.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
           <p className="muted">{sources.length === 0 ? "No Sources yet." : "No active Sources — try “Show deactivated”."}</p>
         )}
       </div>

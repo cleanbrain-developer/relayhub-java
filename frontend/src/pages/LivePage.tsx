@@ -151,7 +151,12 @@ export function LivePage() {
   const [detailAttemptId, setDetailAttemptId] = useState<string | null>(null);
   const [detailAttempt, setDetailAttempt] = useState<DeliveryAttempt | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [loadErrors, setLoadErrors] = useState<string[]>([]);
   const loggedIn = isLoggedIn();
+
+  function addLoadError(label: string) {
+    setLoadErrors((prev) => (prev.includes(label) ? prev : [...prev, label]));
+  }
   const [renderedPulses, setRenderedPulses] = useState<(Pulse & { progress: number })[]>([]);
   const pulsesRef = useRef<Pulse[]>([]);
   const pulseId = useRef(0);
@@ -208,23 +213,38 @@ export function LivePage() {
     // built on it are excluded from delivery too), so it has no place on a *live* traffic map.
     get<Source[]>("/api/sources")
       .then((all) => setSources(all.filter((s) => s.status === "ACTIVE")))
-      .catch((e) => console.error("Failed to load sources", e));
+      .catch((e) => {
+        console.error("Failed to load sources", e);
+        addLoadError("Sources");
+      });
     get<Target[]>("/api/targets")
       .then((all) => setTargets(all.filter((t) => t.status === "ACTIVE")))
-      .catch((e) => console.error("Failed to load targets", e));
+      .catch((e) => {
+        console.error("Failed to load targets", e);
+        addLoadError("Targets");
+      });
     get<Subscription[]>("/api/subscriptions")
       .then((all) => setSubscriptions(all.filter((s) => s.status === "ACTIVE")))
-      .catch((e) => console.error("Failed to load subscriptions", e));
+      .catch((e) => {
+        console.error("Failed to load subscriptions", e);
+        addLoadError("Subscriptions");
+      });
     get<DeliverySummary>("/api/deliveries/summary")
       .then((s) => setDeadCount(s.dead))
-      .catch((e) => console.error("Failed to load delivery summary", e));
+      .catch((e) => {
+        console.error("Failed to load delivery summary", e);
+        addLoadError("Delivery summary");
+      });
     fetchDlqSchedule();
   }, []);
 
   function fetchDlqSchedule() {
     get<{ intervalMs: number; lastRunAt: string; nextRunAt: string }>("/api/dlq/schedule")
       .then((s) => setDlqNextRunAt(new Date(s.nextRunAt).getTime()))
-      .catch((e) => console.error("Failed to load DLQ schedule", e));
+      .catch((e) => {
+        console.error("Failed to load DLQ schedule", e);
+        addLoadError("DLQ schedule");
+      });
   }
 
   // Re-fetch the DLQ count and next-sweep time shortly after anything that could change them (a
@@ -267,7 +287,10 @@ export function LivePage() {
     if (!loggedIn) return;
     getAuthed<SchedulerStatus>("/api/simulator/status")
       .then(setSimulator)
-      .catch((e) => console.error("Failed to load simulator status", e));
+      .catch((e) => {
+        console.error("Failed to load simulator status", e);
+        addLoadError("Demo generator status");
+      });
   }, [loggedIn]);
 
   async function toggleSimulator() {
@@ -503,6 +526,9 @@ export function LivePage() {
           </span>
         </div>
       </div>
+      {loadErrors.length > 0 && (
+        <p className="error">Couldn't load: {loadErrors.join(", ")} — try reloading the page.</p>
+      )}
       {simulatorError && <p className="error">{simulatorError}</p>}
       <p className="muted">
         Real-time Source &rarr; Source Event &rarr; RelayHub &rarr; Target traffic, pushed over SSE as it happens —

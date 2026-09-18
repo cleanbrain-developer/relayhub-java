@@ -8,6 +8,7 @@ import { MetricsChart } from "../components/MetricsChart";
 export function DashboardPage() {
   const [summary, setSummary] = useState<DeliverySummary | null>(null);
   const [recent, setRecent] = useState<Delivery[]>([]);
+  const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<Target[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,14 +20,18 @@ export function DashboardPage() {
         setSummary(s);
         setRecent(deliveries.slice(0, 10));
       })
-      .catch((err) => setError((err as Error).message));
-    get<Target[]>("/api/targets").then(setTargets).catch(() => {});
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
+    get<Target[]>("/api/targets")
+      .then(setTargets)
+      .catch(() => setError("Couldn't load Targets — delivery rows below will show raw IDs instead of Target keys."));
   }, []);
 
   return (
     <div>
       <h1>Dashboard</h1>
       {error && <p className="error">{error}</p>}
+      {loading && <p className="muted">Loading...</p>}
       {summary && (
         <div className="stat-row">
           <div className="stat-tile">

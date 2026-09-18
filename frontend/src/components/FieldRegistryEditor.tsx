@@ -1,6 +1,7 @@
 import { Fragment, FormEvent, useEffect, useState } from "react";
 import { del, get, post, put } from "../api";
 import { FieldDataType, Status } from "../types";
+import { useToast } from "../toast";
 
 const DATA_TYPES: FieldDataType[] = ["STRING", "NUMBER", "BOOLEAN", "OBJECT", "ARRAY", "DATE"];
 
@@ -69,15 +70,20 @@ interface Props {
  */
 export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Props) {
   const [fields, setFields] = useState<FieldRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState<FieldFormState>(emptyForm);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<FieldFormState>(emptyForm);
+  const { notify } = useToast();
 
   function reload() {
-    get<FieldRow[]>(basePath).then(setFields).catch((err) => setError((err as Error).message));
+    get<FieldRow[]>(basePath)
+      .then(setFields)
+      .catch((err) => setError((err as Error).message))
+      .finally(() => setLoading(false));
   }
 
   useEffect(reload, [basePath]);
@@ -91,8 +97,10 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
       setForm(emptyForm);
       setShowCreate(false);
       reload();
+      notify(`Field "${key}" added.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -112,8 +120,10 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
       await put(`${basePath}/${key}`, includeJsonPath ? { jsonPath, ...rest } : rest);
       setEditingKey(null);
       reload();
+      notify(`Field "${key}" updated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -123,8 +133,10 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
     try {
       await del(`${basePath}/${key}`);
       reload();
+      notify(`Field "${key}" deactivated.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -134,8 +146,10 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
     try {
       await del(`${basePath}/${key}?hard=true`);
       reload();
+      notify(`Field "${key}" permanently deleted.`);
     } catch (err) {
       setError((err as Error).message);
+      notify((err as Error).message, "error");
     }
   }
 
@@ -210,7 +224,9 @@ export function FieldRegistryEditor({ basePath, includeJsonPath, loggedIn }: Pro
         </form>
       )}
 
-      {visible.length === 0 ? (
+      {loading ? (
+        <p className="muted">Loading fields...</p>
+      ) : visible.length === 0 ? (
         <p className="muted">
           {fields.length === 0 ? "No fields registered yet." : "No active fields — try “Show deactivated”."}
         </p>
