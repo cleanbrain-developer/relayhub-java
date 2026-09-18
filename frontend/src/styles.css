@@ -31,6 +31,14 @@
   --row-hover: #fbfbfe;
   --topology-edge: #d7d9e6;
   --star-color: rgba(79, 70, 229, 0.14);
+  /* Categorical palette for MetricsChart's line series (Prometheus label values, not a fixed
+     status like --ok/--danger) — tuned per theme since a couple of these read fine on a light
+     card but too dark/low-contrast on a dark one. */
+  --chart-1: #2f5cf0;
+  --chart-2: #cf222e;
+  --chart-3: #1a7f37;
+  --chart-4: #a15c00;
+  --chart-5: #8250df;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 16, 30, 0.04), 0 4px 16px rgba(16, 16, 30, 0.04);
   font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -63,6 +71,11 @@
   --row-hover: #1d2029;
   --topology-edge: #363b4a;
   --star-color: rgba(129, 140, 248, 0.4);
+  --chart-1: #6d8dfd;
+  --chart-2: #f87171;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #b794f6;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 

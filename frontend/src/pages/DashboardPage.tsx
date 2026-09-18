@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { get } from "../api";
+import { queryInstant } from "../metrics";
 import { Delivery, DeliverySummary, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { MetricsChart } from "../components/MetricsChart";
@@ -11,6 +12,8 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<Target[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [ingressRate, setIngressRate] = useState<number | null>(null);
+  const [deliveryRate, setDeliveryRate] = useState<number | null>(null);
 
   const targetKeyById = useMemo(() => Object.fromEntries(targets.map((t) => [t.id, t.key])), [targets]);
 
@@ -25,6 +28,11 @@ export function DashboardPage() {
     get<Target[]>("/api/targets")
       .then(setTargets)
       .catch(() => setError("Couldn't load Targets — delivery rows below will show raw IDs instead of Target keys."));
+    // A one-off "right now" total alongside the two charts below (which already show the same
+    // rates broken down by outcome/status over time) — uses GET /api/metrics/query, unused by the
+    // frontend until now despite existing since Spec 004.
+    queryInstant("sum(rate(relayhub_ingress_events_total[5m]) * 60)").then(setIngressRate).catch(() => {});
+    queryInstant("sum(rate(relayhub_delivery_attempts_total[5m]) * 60)").then(setDeliveryRate).catch(() => {});
   }, []);
 
   return (
@@ -46,6 +54,18 @@ export function DashboardPage() {
             <div className="stat-value">{summary.dead}</div>
             <div className="stat-label">Dead (DLQ)</div>
           </div>
+          {ingressRate !== null && (
+            <div className="stat-tile">
+              <div className="stat-value">{ingressRate.toFixed(1)}</div>
+              <div className="stat-label">Ingress / min (now)</div>
+            </div>
+          )}
+          {deliveryRate !== null && (
+            <div className="stat-tile">
+              <div className="stat-value">{deliveryRate.toFixed(1)}</div>
+              <div className="stat-label">Delivery attempts / min (now)</div>
+            </div>
+          )}
         </div>
       )}
 

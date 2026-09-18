@@ -44,6 +44,7 @@ interface Pulse {
    *  missile doesn't visibly change speed at the waypoint in between (sums to 1). */
   legWeights: number[];
   color: string;
+  kind: PulseKind;
   start: number;
   /** "replay" draws a dashed halo around the missile — a retry (manual or auto) looks
    *  deliberately different from first-attempt traffic. */
@@ -67,37 +68,59 @@ const PULSE_RADIUS = 10;
 // from the original 1x so the missile reads clearly even on a busy topology (maintainer feedback
 // 2026-09-12: "더 화려해도 돼", asking for a bigger, showier Live page across the board).
 const MISSILE_SCALE = 1.6;
-const COLOR_INGRESS = "#4f46e5";
-const COLOR_SUCCESS = "#0f8b3f";
-const COLOR_FAILED = "#d6293e";
-const DLQ_COLOR = "#7c2d12";
+
+type PulseKind = "ingress" | "success" | "failed" | "dlq";
+
+/** Reads the same CSS custom property the rest of the chrome uses for this status (StatusBadge,
+ *  topology-node borders, etc.) so a pulse/explosion always matches the current theme instead of
+ *  a hardcoded light-theme hex — falls back to that same light-theme value if read before the
+ *  stylesheet applies (e.g. a spawn on the very first paint). */
+function cssVar(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function colorFor(kind: PulseKind): string {
+  switch (kind) {
+    case "success":
+      return cssVar("--ok", "#0f8b3f");
+    case "failed":
+      return cssVar("--danger", "#d6293e");
+    case "dlq":
+      return cssVar("--dlq", "#7c2d12");
+    default:
+      return cssVar("--accent", "#4f46e5");
+  }
+}
+
 /** Warm gradient for the flame trail, brightest near the nozzle fading toward the pulse's own
  *  status color further back — more stops than a minimal trail needs, deliberately, for a fuller
- *  "flame" read instead of a handful of sparse dots. */
+ *  "flame" read instead of a handful of sparse dots. Decorative, not a status color, so unlike
+ *  colorFor() above it stays fixed across themes. */
 const TRAIL_COLORS = ["#fff3b0", "#ffd166", "#ffb703", "#ff8c42"];
 const TRAIL_OFFSETS = [0.045, 0.09, 0.14, 0.19, 0.25, 0.32];
 
 /** How showy each pulse's impact explosion is — DLQ landings and failures get the biggest "boom",
  *  a plain ingress arrival barely more than a puff. `colors` cycle across the radiating particles
- *  for a bit of sparkle instead of a monochrome burst. */
-const EXPLOSION_PRESETS: Record<"ingress" | "success" | "failed" | "dlq", { count: number; distance: number; ring: number; colors: string[] }> = {
-  ingress: { count: 9, distance: 24, ring: 20, colors: [COLOR_INGRESS, "#a5b4fc"] },
-  success: { count: 16, distance: 44, ring: 36, colors: [COLOR_SUCCESS, "#ffd166", "#6ee7b7"] },
-  failed: { count: 22, distance: 64, ring: 64, colors: [COLOR_FAILED, "#ff8c42", "#ffd166", "#fff3b0"] },
-  dlq: { count: 28, distance: 78, ring: 80, colors: [DLQ_COLOR, "#8a8a8a", "#ff8c42", "#c2410c", "#fff3b0"] },
-};
-
-function explosionKind(color: string): keyof typeof EXPLOSION_PRESETS {
-  if (color === DLQ_COLOR) return "dlq";
-  if (color === COLOR_FAILED) return "failed";
-  if (color === COLOR_SUCCESS) return "success";
-  return "ingress";
+ *  for a bit of sparkle instead of a monochrome burst; only the first (the pulse's own status
+ *  color) adapts to theme, the rest are fixed decorative sparkle accents. */
+function explosionPreset(kind: PulseKind): { count: number; distance: number; ring: number; colors: string[] } {
+  switch (kind) {
+    case "success":
+      return { count: 16, distance: 44, ring: 36, colors: [colorFor("success"), "#ffd166", "#6ee7b7"] };
+    case "failed":
+      return { count: 22, distance: 64, ring: 64, colors: [colorFor("failed"), "#ff8c42", "#ffd166", "#fff3b0"] };
+    case "dlq":
+      return { count: 28, distance: 78, ring: 80, colors: [colorFor("dlq"), "#8a8a8a", "#ff8c42", "#c2410c", "#fff3b0"] };
+    default:
+      return { count: 9, distance: 24, ring: 20, colors: [colorFor("ingress"), "#a5b4fc"] };
+  }
 }
 
 /** Comic-style callout text that pops at the impact point — skipped for "ingress" (it lands on
  *  the Event node constantly and would drown everything else out), shown for the three stages
  *  that actually mean something happened. */
-const IMPACT_TEXT: Partial<Record<keyof typeof EXPLOSION_PRESETS, string>> = {
+const IMPACT_TEXT: Partial<Record<PulseKind, string>> = {
   success: "HIT!",
   failed: "BOOM!",
   dlq: "DLQ!",
@@ -375,7 +398,7 @@ export function LivePage() {
     }
   }
 
-  function spawnPulse(waypoints: Point[], color: string, replay = false) {
+  function spawnPulse(waypoints: Point[], color: string, kind: PulseKind, replay = false) {
     // Random arc per leg (not always the same straight line) gives each "missile" its own flight
     // instead of a mechanical, identical repeat every time.
     const arcs = waypoints.slice(1).map(() => (Math.random() - 0.5) * 60);
@@ -387,7 +410,7 @@ export function LivePage() {
     const legWeights = lengths.map((len) => len / totalLength);
     pulsesRef.current = [
       ...pulsesRef.current,
-      { id: pulseId.current++, waypoints, arcs, legWeights, color, start: performance.now(), replay },
+      { id: pulseId.current++, waypoints, arcs, legWeights, color, kind, start: performance.now(), replay },
     ];
     if (rafRef.current === null) {
       rafRef.current = requestAnimationFrame(tick);
@@ -451,7 +474,8 @@ export function LivePage() {
       setFeed((prev) => [event, ...prev].slice(0, 30));
 
       const eventPos = event.eventKey ? eventPositions[eventNodeKey(event.sourceKey, event.eventKey)] : undefined;
-      const color = event.status === "failed" ? COLOR_FAILED : event.status === "success" ? COLOR_SUCCESS : COLOR_INGRESS;
+      const kind: PulseKind = event.status === "failed" ? "failed" : event.status === "success" ? "success" : "ingress";
+      const color = colorFor(kind);
       const ingressKey = event.eventKey ? eventNodeKey(event.sourceKey, event.eventKey) : event.sourceKey;
       const now = performance.now();
 
@@ -462,7 +486,7 @@ export function LivePage() {
         // ingresses for the same event never visibly overlap.
         const delay = readyDelay(lastIngressAt.current, ingressKey, now);
         lastIngressAt.current.set(ingressKey, now + delay + PULSE_DURATION_MS);
-        const spawn = () => spawnPulse([from, eventPos ?? hub], color);
+        const spawn = () => spawnPulse([from, eventPos ?? hub], color, kind);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
         triggerNodeHit(`evt:${ingressKey}`, delay);
       } else if (event.stage === "delivery") {
@@ -479,7 +503,7 @@ export function LivePage() {
         lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
         // Routed explicitly through the Hub node (not a direct Event->Target arc) so the flight
         // visibly passes through RelayHub instead of appearing to skip over it.
-        const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, event.replay);
+        const spawn = () => spawnPulse([eventPos ?? hub, hub, to], color, kind, event.replay);
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
         triggerNodeHit(`tgt:${event.targetKey}`, delay);
         if (event.status === "failed") triggerShake(delay);
@@ -492,7 +516,7 @@ export function LivePage() {
         // before departing for the DLQ.
         const delay = readyDelay(lastDeliveryAt.current, deliveryKey, now);
         lastDeliveryAt.current.set(deliveryKey, now + delay + PULSE_DURATION_MS);
-        const spawn = () => spawnPulse([hub, dlqPos], DLQ_COLOR);
+        const spawn = () => spawnPulse([hub, dlqPos], colorFor("dlq"), "dlq");
         delay > 0 ? window.setTimeout(spawn, delay) : spawn();
         triggerNodeHit("dlq", delay);
         triggerShake(delay);
@@ -688,7 +712,7 @@ export function LivePage() {
             const impactT = p.progress > 0.8 ? (p.progress - 0.8) / 0.2 : 0;
             const start = p.waypoints[0];
             const end = p.waypoints[p.waypoints.length - 1];
-            const explosion = EXPLOSION_PRESETS[explosionKind(p.color)];
+            const explosion = explosionPreset(p.kind);
             const s = MISSILE_SCALE;
             return (
               <g key={p.id}>
@@ -739,7 +763,7 @@ export function LivePage() {
                     />
                     {/* comic-book callout — the last flashy flourish: a bold word that pops and
                         drifts up out of the explosion, not just particles */}
-                    {IMPACT_TEXT[explosionKind(p.color)] && impactT < 0.75 && (
+                    {IMPACT_TEXT[p.kind] && impactT < 0.75 && (
                       <text
                         x={end.x}
                         y={end.y - 22 - impactT * 26}
@@ -752,7 +776,7 @@ export function LivePage() {
                           transformOrigin: `${end.x}px ${end.y - 22}px`,
                         }}
                       >
-                        {IMPACT_TEXT[explosionKind(p.color)]}
+                        {IMPACT_TEXT[p.kind]}
                       </text>
                     )}
                     {/* radiating "펑펑" debris — count/reach/palette scale up from a plain ingress

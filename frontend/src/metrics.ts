@@ -9,6 +9,15 @@ interface PrometheusRangeResult {
   };
 }
 
+interface PrometheusInstantResult {
+  data: {
+    result: {
+      metric: Record<string, string>;
+      value: [number, string];
+    }[];
+  };
+}
+
 export interface ChartPoint {
   time: string;
   [series: string]: string | number;
@@ -46,4 +55,18 @@ export async function queryRange(
     }
   }
   return [...byTime.entries()].sort(([a], [b]) => a - b).map(([, point]) => point);
+}
+
+/**
+ * Runs a Prometheus instant query (GET /api/metrics/query — same proxy as queryRange, previously
+ * unused by the frontend even though the backend has had it since Spec 004) and sums every
+ * returned series' value, since callers here use a `sum by (label) (...)` query and just want one
+ * "right now" total rather than the per-label breakdown queryRange's charts already show. Returns
+ * null when Prometheus has no data yet (e.g. right after a fresh deploy) rather than 0, so the
+ * caller can distinguish "genuinely zero" from "no data".
+ */
+export async function queryInstant(query: string): Promise<number | null> {
+  const res = await get<PrometheusInstantResult>(`/api/metrics/query?${new URLSearchParams({ query })}`);
+  if (res.data.result.length === 0) return null;
+  return res.data.result.reduce((sum, series) => sum + Number(series.value[1]), 0);
 }

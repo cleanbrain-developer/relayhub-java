@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartPoint, queryRange } from "../metrics";
 
-const COLORS = ["#2f5cf0", "#cf222e", "#1a7f37", "#a15c00", "#8250df"];
+// CSS custom properties (styles.css), not fixed hex — tuned per theme so series stay readable
+// against both a light and a dark chart card.
+const COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
 interface Props {
   title: string;
