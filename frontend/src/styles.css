@@ -78,15 +78,37 @@ body {
 }
 
 .nav {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
   padding: 0.75rem 1.5rem;
   background: var(--card);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 10;
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
 }
 
 .nav .brand {
@@ -906,7 +928,36 @@ code {
   .content {
     padding: 1.25rem 1rem 3rem;
   }
-  .nav {
-    flex-wrap: wrap;
+  .nav-toggle {
+    display: inline-flex;
+  }
+  .nav-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+    padding-top: 0.6rem;
+  }
+  .nav-links-open {
+    display: flex;
+  }
+  .nav-links .nav-spacer {
+    display: none;
+  }
+  .nav-visitor-count {
+    padding: 0.3rem 0.7rem;
+  }
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  /* Scaling the topology svg down to fit a phone's width via preserveAspectRatio alone shrinks its
+     fixed-size node labels below legibility; scroll it horizontally at a readable size instead. */
+  .live-topology {
+    overflow-x: auto;
+  }
+  .live-topology svg {
+    min-width: 640px;
   }
 }
