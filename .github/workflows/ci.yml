@@ -35,6 +35,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Every .md document must have a .ko.md companion (agent-dev-starter ADR-0004/
+      # ADR-0005), and any project with an existing CI pipeline picks this up by
+      # default (ADR-0009). --missing-only because a fresh checkout resets mtimes,
+      # making the script's staleness heuristic meaningless here.
+      - name: Check Korean documentation companions
+        run: bash scripts/check-ko-companions.sh --missing-only
+
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:

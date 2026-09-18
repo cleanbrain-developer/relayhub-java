@@ -58,6 +58,7 @@ Last updated: 2026-09-13
 - **CORS expanded again same day** for a second, larger ask: the maintainer wanted `developer.cleanbrain.me` to show this app's actual animated Live topology view (`LivePage.tsx`'s SSE-driven missile/explosion diagram), not just KPI numbers. Added `/api/sources/**`, `/api/subscriptions/**`, `/api/dlq/**`, and `/api/live/**` (the SSE stream itself) to the same `CorsConfigurationSource` bean — still `GET`-only, still that one origin. `developer.cleanbrain.me` will run its own ported copy of the topology animation, not an iframe of this app's page, fed by these endpoints cross-origin.
 
 - **Korean documentation companions** (2026-09-17): added a `.ko.md` Korean translation companion for every `.md` document in this repository (34 files — README, `CLAUDE.md`, `.ai/constitution/`, `docs/product/`, `docs/architecture/`, `docs/decisions/`, `docs/status/current-state.md`, and the full `specs/001`-`specs/006` tree), per the mandatory convention decided in ADR-0004/ADR-0005 of `agent-dev-starter`. English remains canonical for every pair; agent bootstrap files' `.ko.md` companions carry an explicit note that bootstrap reads the English original, not the translation.
+- **Korean-companion CI check** (2026-09-18): copied `scripts/check-ko-companions.sh` from `agent-dev-starter` and added a step to `.github/workflows/ci.yml`'s `test` job that runs it with `--missing-only` and fails the build on a missing `.ko.md` companion, per `agent-dev-starter`'s `ADR-0009`.
 
 ## In progress
 

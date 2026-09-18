@@ -60,6 +60,7 @@ Last updated: 2026-09-13
 - 같은 날 두 번째, 더 큰 요청을 위해 **CORS가 다시 확장**되었습니다: maintainer는 `developer.cleanbrain.me`가 단순한 KPI 숫자가 아니라 이 app의 실제 애니메이션된 Live topology view(`LivePage.tsx`의 SSE 기반 missile/explosion diagram)를 보여주기를 원했습니다. `/api/sources/**`, `/api/subscriptions/**`, `/api/dlq/**`, `/api/live/**`(SSE stream 자체)가 같은 `CorsConfigurationSource` bean에 추가되었습니다 — 여전히 `GET`-only이며 여전히 그 하나의 origin입니다. `developer.cleanbrain.me`는 이 app page의 iframe이 아니라 이 endpoint들로부터 cross-origin으로 데이터를 받는, topology animation의 자체 이식된 복사본을 실행할 것입니다.
 
 - **Korean documentation companions** (2026-09-17): 이 repository의 모든 `.md` 문서에 대해 `.ko.md` Korean 번역 companion을 추가했습니다(34개 file — README, `CLAUDE.md`, `.ai/constitution/`, `docs/product/`, `docs/architecture/`, `docs/decisions/`, `docs/status/current-state.md`, 그리고 전체 `specs/001`-`specs/006` tree). `agent-dev-starter`의 ADR-0004/ADR-0005에서 결정된 mandatory convention에 따른 것입니다. 모든 pair에서 영어 원본이 canonical로 유지되며, agent bootstrap file의 `.ko.md` companion에는 bootstrap이 번역본이 아니라 영어 원본을 읽는다는 명시적인 note가 포함되어 있습니다.
+- **Korean-companion CI check** (2026-09-18): `agent-dev-starter`에서 `scripts/check-ko-companions.sh`를 복사하고, `.github/workflows/ci.yml`의 `test` job에 `--missing-only`로 실행해서 `.ko.md` companion이 누락되면 build를 실패시키는 step을 추가했습니다, `agent-dev-starter`의 `ADR-0009`에 따름.
 
 ## In progress
 
