@@ -91,6 +91,9 @@ body {
 }
 
 .nav {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.75rem 1.5rem;
   background: var(--card);
   border-bottom: 1px solid var(--border);
@@ -99,16 +102,12 @@ body {
   z-index: 10;
 }
 
-.nav-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
+/* On desktop the page links live directly in .nav's own flex row (display: contents means this
+   wrapper contributes no box of its own — its children just flow inline with brand/visitor-count/
+   theme-toggle/login as one line). Only on narrow viewports does it become a real collapsible box
+   — see the media query below. */
 .nav-links {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  display: contents;
 }
 
 .nav-toggle {
@@ -941,21 +940,24 @@ code {
   .content {
     padding: 1.25rem 1rem 3rem;
   }
+  .nav {
+    flex-wrap: wrap;
+  }
   .nav-toggle {
     display: inline-flex;
   }
   .nav-links {
     display: none;
+  }
+  /* Forced onto its own full-width line below the always-visible brand/visitor-count/theme/login
+     row (flex-basis: 100% + .nav's flex-wrap above), rather than squeezed into that row. */
+  .nav-links-open {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0.15rem;
+    flex-basis: 100%;
     padding-top: 0.6rem;
-  }
-  .nav-links-open {
-    display: flex;
-  }
-  .nav-links .nav-spacer {
-    display: none;
   }
   .nav-visitor-count {
     padding: 0.3rem 0.7rem;
