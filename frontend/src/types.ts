@@ -124,3 +124,7 @@ export interface DeliverySummary {
   succeeded: number;
   dead: number;
 }
+
+export interface DeliverySettings {
+  maxAttempts: number;
+}

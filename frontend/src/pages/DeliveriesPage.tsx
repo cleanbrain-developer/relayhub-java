@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { get, getAuthed, post } from "../api";
+import { get, getAuthed, put, post } from "../api";
 import { isLoggedIn } from "../auth";
-import { CanonicalEvent, Delivery, DeliveryAttempt, DeliveryState, Target } from "../types";
+import { CanonicalEvent, Delivery, DeliveryAttempt, DeliverySettings, DeliveryState, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { AttemptDetail } from "../components/AttemptDetail";
 import { EventDetail } from "../components/EventDetail";
@@ -24,6 +24,10 @@ export function DeliveriesPage() {
   const [event, setEvent] = useState<CanonicalEvent | null>(null);
   const [eventError, setEventError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
+  const [editingPolicy, setEditingPolicy] = useState(false);
+  const [policyForm, setPolicyForm] = useState("");
+  const [policyError, setPolicyError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
 
@@ -49,6 +53,29 @@ export function DeliveriesPage() {
   useEffect(() => {
     get<Target[]>("/api/targets").then(setTargets).catch(() => {});
   }, []);
+
+  function loadPolicy() {
+    get<DeliverySettings>("/api/delivery-settings")
+      .then((s) => setMaxAttempts(s.maxAttempts))
+      .catch(() => {});
+  }
+
+  useEffect(loadPolicy, []);
+
+  async function savePolicy(e: FormEvent) {
+    e.preventDefault();
+    setPolicyError(null);
+    const parsed = Number(policyForm);
+    try {
+      const updated = await put<DeliverySettings>("/api/delivery-settings", { maxAttempts: parsed });
+      setMaxAttempts(updated.maxAttempts);
+      setEditingPolicy(false);
+      notify(`Retry policy updated — up to ${updated.maxAttempts} attempt(s) before DEAD.`);
+    } catch (err) {
+      setPolicyError((err as Error).message);
+      notify((err as Error).message, "error");
+    }
+  }
 
   useEffect(() => {
     // Attempts carry the real request/response bodies exchanged with a Target — admin-only (see
@@ -101,6 +128,49 @@ export function DeliveriesPage() {
     <div>
       <h1>Deliveries</h1>
       {error && <p className="error">{error}</p>}
+
+      <div className="card form-card" style={{ marginBottom: "1.25rem" }}>
+        {!editingPolicy ? (
+          <div className="page-header" style={{ marginBottom: 0 }}>
+            <span>
+              Retry policy: up to <strong>{maxAttempts ?? "?"}</strong> attempt(s) before a Delivery is marked{" "}
+              <strong>DEAD</strong> (DLQ).
+            </span>
+            {loggedIn && maxAttempts !== null && (
+              <button
+                onClick={() => {
+                  setPolicyForm(String(maxAttempts));
+                  setPolicyError(null);
+                  setEditingPolicy(true);
+                }}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={savePolicy} className="filter-row" style={{ alignItems: "flex-end" }}>
+            <label>
+              Max attempts before DEAD
+              <input
+                type="number"
+                min={1}
+                max={10}
+                required
+                value={policyForm}
+                onChange={(e) => setPolicyForm(e.target.value)}
+              />
+            </label>
+            <button type="submit" className="btn-primary">
+              Save
+            </button>
+            <button type="button" onClick={() => setEditingPolicy(false)}>
+              Cancel
+            </button>
+            {policyError && <p className="error">{policyError}</p>}
+          </form>
+        )}
+      </div>
 
       <div className="filter-row">
         <label>
@@ -168,7 +238,7 @@ export function DeliveriesPage() {
                         RelayHub's own {attempts.length || d.attemptCount} attempt(s) to deliver this event to Target{" "}
                         <code>{targetKey}</code> — every row below is a retry against that <em>same</em> Target, not a
                         chain through different systems. RelayHub gives up and marks the delivery <strong>DEAD</strong>{" "}
-                        after 3 failed attempts; <strong>Replay</strong> above makes one more.
+                        after {maxAttempts ?? "a few"} failed attempts; <strong>Replay</strong> above makes one more.
                       </p>
                       <table className="nested-table">
                         <thead>

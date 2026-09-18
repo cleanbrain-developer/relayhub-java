@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
+import me.cleanbrain.relayhub.deliverysettings.DeliverySettingsService;
 import me.cleanbrain.relayhub.event.Event;
 import me.cleanbrain.relayhub.event.EventRepository;
 import me.cleanbrain.relayhub.live.LiveActivityBroadcaster;
@@ -41,8 +42,10 @@ public class DeliveryService {
     private static final Logger log = LoggerFactory.getLogger(DeliveryService.class);
     private static final int MAX_RECORDED_BODY_LENGTH = 4000;
 
-    private static final int MAX_ATTEMPTS = 3;
-    private static final long[] BACKOFF_MILLIS = {200, 400};
+    /** Backoff before attempt N+1: 200ms * N (200, 400, 600, ...) — matches the original fixed
+     *  {200, 400} array exactly for the first two gaps, but scales to any configured max attempts
+     *  now that it's no longer a hardcoded constant (see DeliverySettingsService). */
+    private static final long BACKOFF_STEP_MILLIS = 200;
 
     private final MappingService mappingService;
     private final DeliveryRepository deliveryRepository;
@@ -52,6 +55,7 @@ public class DeliveryService {
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
     private final LiveActivityBroadcaster liveActivityBroadcaster;
+    private final DeliverySettingsService deliverySettingsService;
 
     // Forces HTTP/1.1: the JDK HttpClient's default HTTP/2 upgrade attempt causes
     // "EOF reached while reading" against plain HTTP/1.1 Target servers (observed against
@@ -100,14 +104,15 @@ public class DeliveryService {
                 .attemptCount(0)
                 .build());
 
-        for (int attemptNumber = 1; attemptNumber <= MAX_ATTEMPTS; attemptNumber++) {
+        int maxAttempts = deliverySettingsService.getMaxAttempts();
+        for (int attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber++) {
             boolean success = attemptOnce(delivery, subscription, sourcePayload, attemptNumber, false);
             if (success) {
                 delivery.setState(DeliveryState.SUCCEEDED);
                 meterRegistry.counter("relayhub.delivery.terminal", "state", "succeeded").increment();
                 return deliveryRepository.save(delivery);
             }
-            if (attemptNumber < MAX_ATTEMPTS) {
+            if (attemptNumber < maxAttempts) {
                 sleepBackoff(attemptNumber);
             }
         }
@@ -219,7 +224,7 @@ public class DeliveryService {
 
     private void sleepBackoff(int attemptNumber) {
         try {
-            Thread.sleep(BACKOFF_MILLIS[attemptNumber - 1]);
+            Thread.sleep(BACKOFF_STEP_MILLIS * attemptNumber);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
