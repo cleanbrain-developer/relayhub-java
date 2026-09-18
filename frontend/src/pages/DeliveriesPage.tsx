@@ -2,9 +2,10 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { get, getAuthed, post } from "../api";
 import { isLoggedIn } from "../auth";
-import { Delivery, DeliveryAttempt, DeliveryState, Target } from "../types";
+import { CanonicalEvent, Delivery, DeliveryAttempt, DeliveryState, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { AttemptDetail } from "../components/AttemptDetail";
+import { EventDetail } from "../components/EventDetail";
 import { useToast } from "../toast";
 
 const STATES: (DeliveryState | "ALL")[] = ["ALL", "PENDING", "SUCCEEDED", "DEAD"];
@@ -19,6 +20,9 @@ export function DeliveriesPage() {
   const [expandedId, setExpandedId] = useState<string | null>(highlight);
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [detailAttemptId, setDetailAttemptId] = useState<string | null>(null);
+  const [eventOpenId, setEventOpenId] = useState<string | null>(null);
+  const [event, setEvent] = useState<CanonicalEvent | null>(null);
+  const [eventError, setEventError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
@@ -65,6 +69,19 @@ export function DeliveriesPage() {
 
   function toggleDetail(attemptId: string) {
     setDetailAttemptId(detailAttemptId === attemptId ? null : attemptId);
+  }
+
+  function toggleEvent(delivery: Delivery) {
+    if (eventOpenId === delivery.id) {
+      setEventOpenId(null);
+      return;
+    }
+    setEventOpenId(delivery.id);
+    setEvent(null);
+    setEventError(null);
+    getAuthed<CanonicalEvent>(`/api/events/${delivery.eventId}`)
+      .then(setEvent)
+      .catch((err) => setEventError((err as Error).message));
   }
 
   async function replay(id: string) {
@@ -129,9 +146,21 @@ export function DeliveriesPage() {
                     ) : (
                       <span className="muted">Log in to view attempts</span>
                     )}
+                    {loggedIn && (
+                      <button onClick={() => toggleEvent(d)}>{eventOpenId === d.id ? "Hide event" : "Source event"}</button>
+                    )}
                     {loggedIn && d.state === "DEAD" && <button onClick={() => replay(d.id)}>Replay</button>}
                   </td>
                 </tr>
+                {eventOpenId === d.id && loggedIn && (
+                  <tr>
+                    <td colSpan={5}>
+                      {eventError && <p className="error">{eventError}</p>}
+                      {!eventError && !event && <p className="muted">Loading event...</p>}
+                      {event && <EventDetail event={event} />}
+                    </td>
+                  </tr>
+                )}
                 {expandedId === d.id && loggedIn && (
                   <tr>
                     <td colSpan={5}>

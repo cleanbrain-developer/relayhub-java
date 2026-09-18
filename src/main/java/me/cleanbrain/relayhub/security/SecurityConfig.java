@@ -108,6 +108,11 @@ public class SecurityConfig {
                         // these to resolve it, so this doesn't break that integration.
                         .requestMatchers(HttpMethod.GET, "/api/deliveries/*/attempts").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/delivery-attempts/**").hasRole("ADMIN")
+                        // Same reasoning as the attempts endpoints above: the canonical Event carries
+                        // the raw ingress payload verbatim, not just metadata (completeness-audit
+                        // finding, 2026-09-18 — this endpoint existed but was never gated when the
+                        // attempts endpoints were locked down).
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .requestMatchers("/ingress/v1/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()

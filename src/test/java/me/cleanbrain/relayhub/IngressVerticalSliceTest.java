@@ -111,6 +111,20 @@ class IngressVerticalSliceTest {
                         .withRequestBody(matchingJsonPath("$.dealerId", equalTo("C10001")))
                         .withRequestBody(matchingJsonPath("$.dealerName", equalTo("ABC Dealer")))
                         .withRequestBody(matchingJsonPath("$.active", equalTo("true")))));
+
+        // The canonical Event behind that Delivery carries the raw ingress payload verbatim — same
+        // sensitivity class as a DeliveryAttempt's request/response bodies, so GET /api/events/{id}
+        // is admin-gated too (SecurityConfig.java), unlike the rest of this page's public GETs.
+        TestRestTemplate admin = restTemplate.withBasicAuth("admin", "admin");
+        ResponseEntity<String> deliveries = admin.getForEntity(baseUrl + "/api/deliveries", String.class);
+        String eventId = com.jayway.jsonpath.JsonPath.read(deliveries.getBody(), "$[0].eventId");
+
+        assertThat(restTemplate.getForEntity(baseUrl + "/api/events/" + eventId, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        ResponseEntity<String> eventResponse = admin.getForEntity(baseUrl + "/api/events/" + eventId, String.class);
+        assertThat(eventResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(eventResponse.getBody()).contains("\"resourceId\":\"C10001\"").contains("\"customerNo\":\"C10001\"");
     }
 
     // /api/** is protected by Spring Security (see security/SecurityConfig.java) with the

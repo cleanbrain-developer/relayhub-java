@@ -92,6 +92,19 @@ export interface Delivery {
   updatedAt: string;
 }
 
+export interface CanonicalEvent {
+  id: string;
+  sourceId: string;
+  sourceEventId: string;
+  resourceType: string;
+  resourceId: string;
+  operation: Operation;
+  occurredAt: string | null;
+  receivedAt: string;
+  idempotencyKey: string | null;
+  payload: unknown;
+}
+
 export interface DeliveryAttempt {
   id: string;
   deliveryId: string;
