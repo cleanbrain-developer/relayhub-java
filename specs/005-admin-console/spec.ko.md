@@ -60,14 +60,21 @@ Source" form은 실제 보안 문제가 될 것입니다.
 
 ## Deliberately out of scope
 
-- Source/Target/Subscription/SourceEvent의 hard delete — Delivery/Event history가 이 row들을
-  참조하므로 soft delete(status -> `INACTIVE`)만 지원합니다.
+- ~~Source/Target/Subscription/SourceEvent의 hard delete — Delivery/Event history가 이 row들을
+  참조하므로 soft delete(status -> `INACTIVE`)만 지원합니다.~~ **대체됨(2026-09-12):** 이제 모든
+  entity controller가 `DELETE .../{key}?hard=true`를 지원하며, console에는 "Delete permanently"
+  버튼으로 노출된다. 참조하는 row가 아직 남아있으면(예: Source Event가 하나라도 등록된 Source)
+  409로 막힌다 — 즉 무조건 불가능한 게 아니라, operator가 참조를 먼저 정리해야만 가능하다.
 - Multi-user account, role, login/registration flow — 이 규모에서는 고정된 admin credential
   하나로 충분합니다.
 - 별도의 `developer.cleanbrain.me` 사이트에 관한 어떤 것도 — 그것은 아직 시작되지 않은 별개의
   프로젝트로, 외부에서 이 console의 동일한 공개 API/Observability 표면을 호출하게 됩니다.
-- 실시간 업데이트(WebSocket/SSE push) — page refresh 시의 polling이나 간단한 interval이면
-  충분하며, live-streaming dashboard는 없습니다.
+- ~~실시간 업데이트(WebSocket/SSE push) — page refresh 시의 polling이나 간단한 interval이면
+  충분하며, live-streaming dashboard는 없습니다.~~ **대체됨(2026-09-12):** 이제 `GET
+  /api/live/stream`(SSE)이 존재하며 console의 Live 페이지를 구동해 Source -> Target 트래픽을
+  실시간으로 보여준다. in-memory emitter 목록만으로는 안 되어(레플리카마다 따로 놀기 때문에)
+  Kafka topic(`LiveActivityBroadcaster`)으로 레플리카 전체에 fan-out한다. 이 console의 나머지는
+  여전히 polling/reload 방식이다 — 전체를 실시간으로 재설계한 것이 아니라 이 하나의 live view만이다.
 - "Delivery를 state로 filtering"을 넘어서는 Pagination, search, filtering — 이 규모의
   데이터 양에는 아직 필요하지 않습니다.
 

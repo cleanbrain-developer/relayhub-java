@@ -53,11 +53,17 @@ ADR-0003이 지적한 durability gap을 메운다: delivery task는 ingress HTTP
   `Delivery` row가 생성된다; Spec 002의 idempotency dedup은 delivery-task 레벨이 아니라 *ingress*
   레벨에서 `(sourceEventId, idempotencyKey)`를 기준으로 이루어진다). 이것은 여기서 조용히 해결된 것이
   아니라 알려진 gap으로 남겨둔다 — 이 spec 이후 `docs/status/current-state.md`의
-  "Known constraints" 참고.
+  "Known constraints" 참고. **부분적으로 완화됨(2026-09-12):** `DeliveryService.deliver()`가
+  `Delivery` 생성 전에 `(eventId, subscriptionId)` 기준 SELECT-then-INSERT 가드를 수행하여 흔한
+  순차 재전달 케이스는 커버한다. 진짜 동시 발생하는 레이스(consumer-group rebalance 순간)는 여전히
+  DB의 unique constraint가 uncaught exception으로 잡아내고, Kafka의 정상 재전달이 이를 재시도한다 —
+  자세한 근거는 `DeliveryService.deliver()`의 Javadoc 참고.
 - 단일 partition 이상의 Kafka topic partitioning/ordering 보장; worker를 하나의 instance 이상으로
   확장하는 것은 시도하지 않는다.
-- Outbox row cleanup/archival — published된 row는 계속 쌓인다. local MVP에서는 허용 가능하며,
-  이것이 언젠가 long-lived 환경에서 운영된다면 그때 재검토한다.
+- ~~Outbox row cleanup/archival — published된 row는 계속 쌓인다. local MVP에서는 허용 가능하며,
+  이것이 언젠가 long-lived 환경에서 운영된다면 그때 재검토한다.~~ **대체됨(2026-09-12):**
+  `RetentionCleanupScheduler`가 이제 매일 cron으로 오래된 `OutboxEvent` row를(오래된
+  `Delivery`/`DeliveryAttempt`/`Event` row와 함께) 삭제하므로, outbox row가 무한정 쌓이지 않는다.
 - Exactly-once Kafka semantics (transactional producer). At-least-once가 명시된 MVP 정책이며
   (`docs/architecture/system-design.md`), Spec 002의 idempotency dedup이 가장 흔히 문제가 되는
   ingress-level 중복 케이스에 대해 이미 존재한다.

@@ -51,9 +51,12 @@ correction").
   기준으로) 메우려는 실제 gap이다.
 - Subscription별 retry policy를 구성 가능하게 파싱하는 것(`Subscription.retryPolicy`는 이번 spec에서
   여전히 free-text/description 필드로 남으며, 모든 Subscription에 고정된 constant policy가 적용된다).
-- 자동/스케줄된 replay — replay는 (`docs/architecture/system-design.md`의 MVP 정책 표
+- ~~자동/스케줄된 replay — replay는 (`docs/architecture/system-design.md`의 MVP 정책 표
   "Recovery: Operator-triggered manual Replay"와 일치하게) operator가 트리거하는 경우
-  (`POST .../replay`)에만 발생한다.
+  (`POST .../replay`)에만 발생한다.~~ **대체됨(2026-09-12):** 이제 `DlqAutoReplayScheduler`가
+  `relayhub.dlq.auto-replay-interval-ms`(기본 30초)마다 가장 오래된 `DEAD` delivery들을 자동으로
+  재시도하며, Postgres advisory lock으로 레플리카 하나만 실행하도록 보장한다. `POST .../replay`는
+  operator가 즉시 재시도를 강제할 때 여전히 존재하지만, 더 이상 유일한 replay 경로가 아니다.
 - 프로세스 재시작 사이, 동시적인 중복 요청에 대한 idempotency (distributed lock 없음); uniqueness
   체크는 단순한 read-then-write이며, single-instance MVP에서는 허용 가능하다.
 

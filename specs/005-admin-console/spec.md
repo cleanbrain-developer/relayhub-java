@@ -56,14 +56,22 @@ and a public unauthenticated "create/delete Source" form would be a real securit
 
 ## Deliberately out of scope
 
-- Hard delete of a Source/Target/Subscription/SourceEvent — soft delete (status -> `INACTIVE`)
-  only, since Delivery/Event history references these rows.
+- ~~Hard delete of a Source/Target/Subscription/SourceEvent — soft delete (status -> `INACTIVE`)
+  only, since Delivery/Event history references these rows.~~ **Superseded (2026-09-12):** every
+  entity controller now also supports `DELETE .../{key}?hard=true`, exposed in the console as a
+  "Delete permanently" button. It's blocked (409) while a referencing row still exists (e.g. a
+  Source with any Source Event still registered) — so history stays intact unless an operator has
+  already cleared what references it, rather than being unconditionally impossible.
 - Multi-user accounts, roles, or a login/registration flow — one fixed admin credential is enough
   at this scale.
 - Anything on the separate `developer.cleanbrain.me` site — that's a different, not-yet-started
   project that will call this console's same public API/Observability surface from the outside.
-- Real-time updates (WebSocket/SSE push) — polling on a page refresh or a simple interval is
-  enough; no live-streaming dashboard.
+- ~~Real-time updates (WebSocket/SSE push) — polling on a page refresh or a simple interval is
+  enough; no live-streaming dashboard.~~ **Superseded (2026-09-12):** `GET /api/live/stream` (SSE)
+  now exists and powers the console's Live page, which shows Source -> Target traffic in real time
+  as it happens, fanned out across replicas via a Kafka topic (`LiveActivityBroadcaster`) rather
+  than an in-memory-only emitter list. Everything else in this console still polls/reloads on
+  demand — this is one dedicated live view, not a general real-time-everywhere redesign.
 - Pagination, search, or filtering beyond "filter Deliveries by state" — data volume at this scale
   doesn't need it yet.
 

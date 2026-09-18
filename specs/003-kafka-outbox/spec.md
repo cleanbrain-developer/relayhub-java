@@ -51,10 +51,17 @@ alive for the whole retry loop.
   same (Event, Subscription) pair; Spec 002's idempotency dedup is at the *ingress* level, keyed on
   `(sourceEventId, idempotencyKey)`, not at the delivery-task level). Flagged as a known gap, not
   silently solved here — see "Known constraints" in `docs/status/current-state.md` after this spec.
+  **Partially mitigated since (2026-09-12):** `DeliveryService.deliver()` does a SELECT-then-INSERT
+  guard on `(eventId, subscriptionId)` before creating a `Delivery`, which covers the common
+  sequential-redelivery case; the DB's unique constraint on that pair still catches the narrower
+  truly-concurrent race (a brief consumer-group rebalance) as an uncaught exception that Kafka's
+  normal redelivery then retries — see `DeliveryService.deliver()`'s Javadoc for the full reasoning.
 - Kafka topic partitioning/ordering guarantees beyond a single partition; scaling the worker beyond
   one instance is not attempted.
-- Outbox row cleanup/archival — published rows accumulate. Acceptable for a local MVP; revisit if
-  this ever runs somewhere long-lived.
+- ~~Outbox row cleanup/archival — published rows accumulate. Acceptable for a local MVP; revisit if
+  this ever runs somewhere long-lived.~~ **Superseded (2026-09-12):** `RetentionCleanupScheduler`
+  now deletes old `OutboxEvent` rows (along with old `Delivery`/`DeliveryAttempt`/`Event` rows) on
+  a daily cron, so outbox rows no longer accumulate unbounded.
 - Exactly-once Kafka semantics (transactional producer). At-least-once is the stated MVP policy
   (`docs/architecture/system-design.md`) and Spec 002's idempotency dedup already exists for the
   ingress-level duplicate case this most commonly matters for.

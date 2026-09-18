@@ -48,9 +48,12 @@ Make failure observable and recoverable (constitution: "Observable failure over 
   Outbox/Kafka pipeline exists to close, per `docs/architecture/system-design.md`.
 - Configurable per-Subscription retry policy parsing (`Subscription.retryPolicy` stays a
   free-text/description field; a fixed constant policy applies to every Subscription in this spec).
-- Automatic/scheduled replay — replay is operator-triggered only (`POST .../replay`), matching the
-  MVP policy table in `docs/architecture/system-design.md` ("Recovery: Operator-triggered manual
-  Replay").
+- ~~Automatic/scheduled replay — replay is operator-triggered only (`POST .../replay`), matching
+  the MVP policy table in `docs/architecture/system-design.md` ("Recovery: Operator-triggered
+  manual Replay").~~ **Superseded (2026-09-12):** `DlqAutoReplayScheduler` now also auto-replays
+  the oldest `DEAD` deliveries every `relayhub.dlq.auto-replay-interval-ms` (default 30s), guarded
+  by a Postgres advisory lock so only one replica runs it. `POST .../replay` still exists for an
+  operator to force an immediate retry; it's no longer the only path to a replay.
 - Idempotency across process restarts under concurrent duplicate requests (no distributed lock);
   the uniqueness check is a plain read-then-write, acceptable for a single-instance MVP.
 
