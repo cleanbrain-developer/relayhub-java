@@ -17,12 +17,13 @@ The original design roadmap is fully built: the vertical slice, the Reliability 
 | Architecture: structure, system design | [`docs/architecture/`](docs/architecture/) |
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
-| Engineering/agent principles | [`.ai/constitution/`](.ai/constitution/) |
+| Durable engineering principles | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |
+| Document ownership / `.ko.md` policy | [`.ai/constitution/documentation-policy.md`](.ai/constitution/documentation-policy.md) |
 | Feature specs | [`specs/001-push-event-delivery/`](specs/001-push-event-delivery/), [`specs/002-retry-dlq-replay/`](specs/002-retry-dlq-replay/), [`specs/003-kafka-outbox/`](specs/003-kafka-outbox/), [`specs/004-observability/`](specs/004-observability/) |
 
-## Working with Claude Code
+## Working with agents
 
-Start from [`CLAUDE.md`](CLAUDE.md) — it routes to the documents above in the order defined by [`docs/architecture/agent-context-model.md`](docs/architecture/agent-context-model.md). This README, `CLAUDE.md`, and the original design conversation are entry points only; the repository documents above are authoritative (see `docs/decisions/ADR-0001-repository-first-context.md`).
+Start from [`AGENTS.md`](AGENTS.md) — it is the sole entry point for every supported agent (currently Claude Code only) and routes to the documents above in the order defined by [`docs/architecture/agent-context-model.md`](docs/architecture/agent-context-model.md). This README, `AGENTS.md`, and the original design conversation are entry points only; the repository documents above are authoritative (see `docs/decisions/ADR-0001-repository-first-context.md`).
 
 ## Running locally
 

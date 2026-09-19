@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-13
+Last updated: 2026-09-20
 
 ## Current phase
 
@@ -59,6 +59,17 @@ Last updated: 2026-09-13
 
 - **Korean documentation companions** (2026-09-17): added a `.ko.md` Korean translation companion for every `.md` document in this repository (34 files — README, `CLAUDE.md`, `.ai/constitution/`, `docs/product/`, `docs/architecture/`, `docs/decisions/`, `docs/status/current-state.md`, and the full `specs/001`-`specs/006` tree), per the mandatory convention decided in ADR-0004/ADR-0005 of `agent-dev-starter`. English remains canonical for every pair; agent bootstrap files' `.ko.md` companions carry an explicit note that bootstrap reads the English original, not the translation.
 - **Korean-companion CI check** (2026-09-18): copied `scripts/check-ko-companions.sh` from `agent-dev-starter` and added a step to `.github/workflows/ci.yml`'s `test` job that runs it with `--missing-only` and fails the build on a missing `.ko.md` companion, per `agent-dev-starter`'s `ADR-0009`.
+- **ADS V2 migration** (2026-09-20): `agent-dev-starter` migrated from its own V1 (self-invented conventions) to V2, built on open standards — `AGENTS.md`, GitHub Spec Kit, Agent Skills (see its `ADR-0010` through `ADR-0013`) — and this repository was retrofitted the same way, mirroring `agent-dev-starter`'s own diff:
+  - `CLAUDE.md` (this repo's only agent adapter, since only Claude Code is supported — see `PROJECT.yaml`'s `supported_agents`) and `.ai/constitution/agent-behavior.md` were merged into a new, sole `AGENTS.md` (agent-dev-starter's `ADR-0011`), then both source files (and their `.ko.md` companions) were deleted. Claude Code has read `AGENTS.md` natively since v2.1.277 (2026-09-18), removing the last reason to keep a separate `CLAUDE.md`.
+  - `.ai/constitution/engineering-principles.md` (including this repo's own "RelayHub-specific principles" section) was merged into a new `.specify/memory/constitution.md` — GitHub Spec Kit's own constitution role (agent-dev-starter's `ADR-0013`) — then the old file and its `.ko.md` companion were deleted.
+  - `.ai/constitution/documentation-policy.md` is unchanged in substance (no open standard owns document ownership or the `.ko.md` policy) but its "Single responsibility" table was updated to point at the new `AGENTS.md`/`.specify/memory/constitution.md` locations instead of the removed files.
+  - `PROJECT.yaml` gained `supported_agents.entrypoint: AGENTS.md`, a new `standards:` block (`agents_md`, `spec_kit.pinned_version: specify-cli==1.0.8`, `skills.claude_code: .claude/skills/`), and `context.agent_entrypoint`/`context.specify_constitution`/`context.documentation_policy` replacing the old `context.agent_entrypoints`/`context.constitution`. `context.specs: specs/` was kept as-is (see "Known constraints" below).
+  - `docs/architecture/overview.md`, `repository-structure.md`, and `agent-context-model.md` were updated to reference `AGENTS.md` as the sole adapter and `.specify/memory/constitution.md` as the constitution's new home, matching `agent-dev-starter`'s own V2 architecture docs' shape. `docs/architecture/system-design.md` needed no change (it never referenced the old paths).
+  - `README.md` and `docs/product/goals.md` had their remaining `CLAUDE.md`/`.ai/constitution/` cross-references updated to `AGENTS.md`/`.specify/memory/constitution.md`.
+  - No `.ai/skills/` directory existed in this repository, so `agent-dev-starter`'s `ADR-0012` (skills belong at `.claude/skills/`, not `.ai/skills/`) required no file move here — `.claude/skills/` is declared in `PROJECT.yaml` but stays empty until a maintainer describes a real, repeatable workflow.
+  - `.ko.md` companions were created or updated for every file touched above, in the same change, per this repo's own bilingual mandate (`ADR-0004`/`ADR-0005`); `scripts/check-ko-companions.sh --missing-only` was run and confirmed 0 missing before committing.
+  - **Deliberately not done, and why**: the real GitHub Spec Kit CLI (`specify-cli==1.0.8`, the version `agent-dev-starter` pins) was not installed, and `specs/001-push-event-delivery/` through `specs/006-field-registry/` were not converted into Spec Kit's own `specs/<NNN-feature>/` structure. The session performing this migration had no working Python/`uv`/`pip` toolchain (only a non-functional Windows Store stub `python.exe`), so `specify init` could not actually be run. Hand-writing `.claude/skills/speckit-*/SKILL.md` files by guessing at the CLI's rendered output was rejected for the same reason `agent-dev-starter` itself rejected it (`ADR-0010`): unverified hand-written skill files risk being subtly wrong. `.specify/memory/constitution.md` was still created by hand, since it is a durable-principles document this repository already owned the content for (`.ai/constitution/engineering-principles.md`), not CLI-rendered output.
+  - `specs/001-push-event-delivery/verification.md` still references `.ai/constitution/agent-behavior.md` (now deleted, merged into `AGENTS.md`) in two places. This was left as-is rather than edited, consistent with leaving the `specs/001`-`006` tree untouched pending its own future Spec Kit migration below — tracked here rather than silently broken.
 
 ## In progress
 
@@ -70,6 +81,8 @@ Last updated: 2026-09-13
 2. `management.tracing.sampling.probability` is `0` in production (no Zipkin there, see `cleanbrain-me-infra`'s `api/configmap.yaml`) but stays `1.0` for local dev — fine at personal-project scale either way; revisit only if real traffic volume ever changes that calculus (see `specs/004-observability/spec.md`).
 3. Consider whether `relayhub-demo-systems`' continuous traffic generation should be tuned (interval, failure rate) now that it's running unattended in production 24/7 rather than only during local verification sessions — it now also feeds `DlqAutoReplayScheduler`'s workload.
 4. `frontend`'s built JS bundle is ~603KB (mostly `recharts`) — fine at this traffic scale, but worth code-splitting (dynamic `import()`) if it ever matters.
+5. Once a working Python/`uv`/`pip` toolchain is available, install the pinned Spec Kit CLI (`specify-cli==1.0.8`) and run `specify init --here --integration claude` for real, then migrate `specs/001-push-event-delivery/` through `specs/006-field-registry/` into Spec Kit's own `specs/<NNN-feature>/` structure instead of running both conventions side by side (see "Known constraints" above and `agent-dev-starter`'s `docs/guides/using-the-starter.md`). Fix `specs/001-push-event-delivery/verification.md`'s two dangling references to the now-deleted `.ai/constitution/agent-behavior.md` as part of that same pass.
+6. Ask the maintainer whether this project has a real, repeatable workflow worth capturing as a Claude Code Skill under `.claude/skills/<name>/SKILL.md` (per `agent-dev-starter`'s `ADR-0003`/`ADR-0012`) — none has been identified yet, and none should be invented speculatively.
 
 ## Open decisions
 
@@ -85,6 +98,8 @@ Last updated: 2026-09-13
 - Delivery-task dedup's true-concurrent race path (consumer-group-rebalance window only) is not covered by an automated test — accepted as a documented gap rather than added complexity (see ADR-0004 "Costs and risks").
 - Prometheus's scrape target (`host.docker.internal:8080`, in `observability/prometheus/prometheus.yml`) assumes Docker Desktop; native Linux Docker would need a different approach (e.g. `--add-host` is already set via `extra_hosts` in `docker-compose.yml`, but this hasn't been verified outside Docker Desktop).
 - No alerting/SLOs/log aggregation — deliberately out of scope for a personal project (see `specs/004-observability/spec.md`).
+- The real GitHub Spec Kit CLI (`specify-cli==1.0.8`, pinned in `PROJECT.yaml`'s `standards.spec_kit.pinned_version` per `agent-dev-starter`'s `ADR-0010`) is not actually installed in this repository — the session that performed the 2026-09-20 ADS V2 migration had no working Python/`uv`/`pip` toolchain to run `specify init`. `.specify/memory/constitution.md` exists (hand-authored from this repo's own prior content) but `.specify/`'s other Spec-Kit-managed files (templates, scripts, `.claude/skills/speckit-*/SKILL.md`) do not.
+- `specs/001-push-event-delivery/` through `specs/006-field-registry/` are this project's own pre-Spec-Kit feature tree and have not been migrated into Spec Kit's own `specs/<NNN-feature>/` structure — that conversion needs the real `specify` CLI, per the constraint above. `specs/001-push-event-delivery/verification.md` also still references the now-deleted `.ai/constitution/agent-behavior.md` (merged into `AGENTS.md`) in two places, left unfixed until that migration.
 
 ## Phase 1 exit criteria (met)
 

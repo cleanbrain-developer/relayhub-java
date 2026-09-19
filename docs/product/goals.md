@@ -11,7 +11,7 @@
 
 ## Success criteria (bootstrap acceptance test)
 
-Reused from Agent Development Starter's model: a new agent session, starting only from `CLAUDE.md` with no shared conversation link, must accurately answer:
+Reused from Agent Development Starter's model: a new agent session, starting only from `AGENTS.md` with no shared conversation link, must accurately answer:
 
 - What is this project?
 - Why does it exist?

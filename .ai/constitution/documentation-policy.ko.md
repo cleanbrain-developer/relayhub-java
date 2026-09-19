@@ -17,8 +17,9 @@ Conversation과 external link(이 project가 bootstrap된 원래의 design conte
 - Structure와 context model: `docs/architecture/`
 - 중요한 decision과 rationale: `docs/decisions/`
 - 현재 progress, next work, open decision: `docs/status/current-state.md`
-- Durable development principle: `.ai/constitution/`
-- Tool-specific bootstrap 차이: agent adapter (`CLAUDE.md`)
+- Durable engineering principle: `.specify/memory/constitution.md` (GitHub Spec Kit 자체의 constitution 역할 — `agent-dev-starter`의 `ADR-0013` 참고)
+- Document ownership과 `.ko.md` language policy — 어떤 open standard도 이것을 소유하지 않음: 이 파일
+- 모든 지원 agent를 위한 bootstrap adapter와 behavioral contract: `AGENTS.md` (sole adapter — `agent-dev-starter`의 `ADR-0011` 참고)
 - Feature-level specification, contract, plan, task, verification: `specs/<feature>/`
 
 동일한 policy를 여러 파일에 중복해서 두지 마세요. summary가 유용한 경우, authoritative path로 link하세요.

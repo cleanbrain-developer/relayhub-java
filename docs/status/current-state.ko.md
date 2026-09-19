@@ -2,7 +2,7 @@
 
 # Current State
 
-Last updated: 2026-09-13
+Last updated: 2026-09-20
 
 ## Current phase
 
@@ -61,6 +61,17 @@ Last updated: 2026-09-13
 
 - **Korean documentation companions** (2026-09-17): 이 repository의 모든 `.md` 문서에 대해 `.ko.md` Korean 번역 companion을 추가했습니다(34개 file — README, `CLAUDE.md`, `.ai/constitution/`, `docs/product/`, `docs/architecture/`, `docs/decisions/`, `docs/status/current-state.md`, 그리고 전체 `specs/001`-`specs/006` tree). `agent-dev-starter`의 ADR-0004/ADR-0005에서 결정된 mandatory convention에 따른 것입니다. 모든 pair에서 영어 원본이 canonical로 유지되며, agent bootstrap file의 `.ko.md` companion에는 bootstrap이 번역본이 아니라 영어 원본을 읽는다는 명시적인 note가 포함되어 있습니다.
 - **Korean-companion CI check** (2026-09-18): `agent-dev-starter`에서 `scripts/check-ko-companions.sh`를 복사하고, `.github/workflows/ci.yml`의 `test` job에 `--missing-only`로 실행해서 `.ko.md` companion이 누락되면 build를 실패시키는 step을 추가했습니다, `agent-dev-starter`의 `ADR-0009`에 따름.
+- **ADS V2 migration** (2026-09-20): `agent-dev-starter`가 자체 V1(독자적으로 만든 convention)에서 open standard 기반의 V2로 이전했습니다 — `AGENTS.md`, GitHub Spec Kit, Agent Skills (해당 repo의 `ADR-0010`부터 `ADR-0013`까지 참고) — 이 repository도 `agent-dev-starter` 자체의 diff를 그대로 따라 동일한 방식으로 retrofit되었습니다:
+  - `CLAUDE.md`(Claude Code만 지원하므로 이 repo의 유일한 agent adapter였음 — `PROJECT.yaml`의 `supported_agents` 참고)와 `.ai/constitution/agent-behavior.md`가 새로운 sole `AGENTS.md`로 merge되었습니다(agent-dev-starter의 `ADR-0011`), 이후 두 원본 파일(과 그 `.ko.md` companion)이 삭제되었습니다. Claude Code는 v2.1.277(2026-09-18)부터 `AGENTS.md`를 native하게 읽으므로, 별도의 `CLAUDE.md`를 유지할 마지막 이유가 사라졌습니다.
+  - `.ai/constitution/engineering-principles.md`(이 repo 고유의 "RelayHub-specific principles" section 포함)가 새로운 `.specify/memory/constitution.md`로 merge되었습니다 — GitHub Spec Kit 자체의 constitution 역할(agent-dev-starter의 `ADR-0013`) — 이후 원본 파일과 그 `.ko.md` companion이 삭제되었습니다.
+  - `.ai/constitution/documentation-policy.md`는 내용상 변경되지 않았습니다(document ownership이나 `.ko.md` policy는 어떤 open standard도 소유하지 않습니다) 다만 "Single responsibility" table이 제거된 파일들 대신 새로운 `AGENTS.md`/`.specify/memory/constitution.md` 위치를 가리키도록 업데이트되었습니다.
+  - `PROJECT.yaml`은 `supported_agents.entrypoint: AGENTS.md`, 새로운 `standards:` block(`agents_md`, `spec_kit.pinned_version: specify-cli==1.0.8`, `skills.claude_code: .claude/skills/`)을 얻었고, 기존의 `context.agent_entrypoints`/`context.constitution`을 대체하는 `context.agent_entrypoint`/`context.specify_constitution`/`context.documentation_policy`를 얻었습니다. `context.specs: specs/`는 그대로 유지되었습니다(아래 "Known constraints" 참고).
+  - `docs/architecture/overview.md`, `repository-structure.md`, `agent-context-model.md`가 `AGENTS.md`를 sole adapter로, `.specify/memory/constitution.md`를 constitution의 새 home으로 참조하도록 업데이트되었습니다. `agent-dev-starter` 자체의 V2 architecture 문서들의 shape와 일치합니다. `docs/architecture/system-design.md`는 원래 옛 path를 참조하지 않았으므로 변경이 필요 없었습니다.
+  - `README.md`와 `docs/product/goals.md`에 남아 있던 `CLAUDE.md`/`.ai/constitution/` cross-reference가 `AGENTS.md`/`.specify/memory/constitution.md`로 업데이트되었습니다.
+  - 이 repository에는 `.ai/skills/` 디렉터리가 존재하지 않았으므로, `agent-dev-starter`의 `ADR-0012`(skill은 `.ai/skills/`가 아니라 `.claude/skills/`에 있어야 함)로 인해 여기서 파일을 옮길 필요는 없었습니다 — `.claude/skills/`는 `PROJECT.yaml`에 선언되어 있지만 maintainer가 실제 반복 가능한 workflow를 설명하기 전까지는 비어 있습니다.
+  - 위에서 다룬 모든 파일에 대해 같은 변경 안에서 `.ko.md` companion을 생성하거나 업데이트했습니다. 이 repo 자체의 bilingual mandate(`ADR-0004`/`ADR-0005`)에 따른 것입니다; commit 전에 `scripts/check-ko-companions.sh --missing-only`를 실행하여 누락이 0임을 확인했습니다.
+  - **의도적으로 하지 않은 것과 그 이유**: 실제 GitHub Spec Kit CLI(`specify-cli==1.0.8`, `agent-dev-starter`가 pin한 버전)는 설치되지 않았고, `specs/001-push-event-delivery/`부터 `specs/006-field-registry/`까지도 Spec Kit 자체의 `specs/<NNN-feature>/` 구조로 변환되지 않았습니다. 이 migration을 수행한 session에는 작동하는 Python/`uv`/`pip` toolchain이 없었습니다(작동하지 않는 Windows Store stub `python.exe`뿐이었음), 따라서 `specify init`을 실제로 실행할 수 없었습니다. CLI의 rendered output을 추측하여 `.claude/skills/speckit-*/SKILL.md` 파일을 손으로 작성하는 것은, `agent-dev-starter` 자체가 그것을 거부한 것과 같은 이유로 거부되었습니다(`ADR-0010`): 검증되지 않은 hand-written skill 파일은 미묘하게 잘못될 위험이 있습니다. `.specify/memory/constitution.md`는 여전히 손으로 작성되었는데, 이 repository가 이미 그 내용(`.ai/constitution/engineering-principles.md`)을 소유하고 있던 durable-principles document이기 때문이며, CLI-rendered output이 아니기 때문입니다.
+  - `specs/001-push-event-delivery/verification.md`는 여전히 (이제 삭제되어 `AGENTS.md`로 merge된) `.ai/constitution/agent-behavior.md`를 두 곳에서 참조하고 있습니다. 아래의 향후 Spec Kit migration을 기다리며 `specs/001`-`006` tree를 그대로 두는 것과 일관되게, 이것은 수정하지 않고 그대로 두었습니다 — 조용히 깨진 상태로 두지 않고 여기에 기록해 둡니다.
 
 ## In progress
 
@@ -72,6 +83,8 @@ Last updated: 2026-09-13
 2. `management.tracing.sampling.probability`는 production에서 `0`이지만(그곳에는 Zipkin이 없음, `cleanbrain-me-infra`의 `api/configmap.yaml` 참고) local dev에서는 `1.0`으로 유지됩니다 — personal-project 규모에서는 어느 쪽이든 괜찮습니다; 실제 traffic volume이 그 계산을 바꿀 때만 재검토합니다(`specs/004-observability/spec.md` 참고).
 3. `relayhub-demo-systems`의 지속적인 traffic 생성(interval, failure rate)이, local verification session 동안만이 아니라 이제 production에서 24/7 무인으로 실행되고 있는 만큼 조정되어야 하는지 고려합니다 — 이제 `DlqAutoReplayScheduler`의 workload에도 데이터를 공급하고 있습니다.
 4. `frontend`의 build된 JS bundle은 약 603KB입니다(대부분 `recharts`) — 이 traffic 규모에서는 괜찮지만, 중요해지면 code-splitting(dynamic `import()`)을 고려할 가치가 있습니다.
+5. 작동하는 Python/`uv`/`pip` toolchain을 사용할 수 있게 되면, pinned Spec Kit CLI(`specify-cli==1.0.8`)를 설치하고 `specify init --here --integration claude`를 실제로 실행한 뒤, `specs/001-push-event-delivery/`부터 `specs/006-field-registry/`까지를 두 convention을 나란히 유지하는 대신 Spec Kit 자체의 `specs/<NNN-feature>/` 구조로 migrate합니다(위의 "Known constraints"와 `agent-dev-starter`의 `docs/guides/using-the-starter.md` 참고). 같은 pass에서 `specs/001-push-event-delivery/verification.md`의, 이제 삭제된 `.ai/constitution/agent-behavior.md`를 향한 두 개의 끊어진 참조도 수정합니다.
+6. 이 project에 Claude Code Skill(`.claude/skills/<name>/SKILL.md`, `agent-dev-starter`의 `ADR-0003`/`ADR-0012` 참고)로 포착할 가치가 있는 실제 반복 가능한 workflow가 있는지 maintainer에게 물어봅니다 — 아직 식별된 것이 없으며, 추측으로 만들어내지 않아야 합니다.
 
 ## Open decisions
 
@@ -87,6 +100,8 @@ Last updated: 2026-09-13
 - Delivery-task dedup의 진짜 동시성 race path(consumer-group-rebalance window에서만 발생)는 automated test로 커버되지 않습니다 — 추가적인 복잡성을 더하는 대신 documented gap으로 받아들여졌습니다(ADR-0004 "Costs and risks" 참고).
 - Prometheus의 scrape target(`observability/prometheus/prometheus.yml`의 `host.docker.internal:8080`)은 Docker Desktop을 가정합니다; native Linux Docker는 다른 접근이 필요할 것입니다(예: `docker-compose.yml`의 `extra_hosts`를 통해 `--add-host`가 이미 설정되어 있지만, Docker Desktop 밖에서는 검증되지 않았습니다).
 - Alerting/SLO/log aggregation이 없습니다 — personal project를 위해 의도적으로 범위 밖입니다(`specs/004-observability/spec.md` 참고).
+- 실제 GitHub Spec Kit CLI(`specify-cli==1.0.8`, `PROJECT.yaml`의 `standards.spec_kit.pinned_version`에 pin됨, `agent-dev-starter`의 `ADR-0010` 참고)는 이 repository에 실제로 설치되어 있지 않습니다 — 2026-09-20 ADS V2 migration을 수행한 session에는 `specify init`을 실행할 작동하는 Python/`uv`/`pip` toolchain이 없었습니다. `.specify/memory/constitution.md`는 존재합니다(이 repo 자체의 이전 내용으로부터 손으로 작성됨) 그러나 `.specify/`의 나머지 Spec-Kit-managed 파일들(template, script, `.claude/skills/speckit-*/SKILL.md`)은 존재하지 않습니다.
+- `specs/001-push-event-delivery/`부터 `specs/006-field-registry/`까지는 이 project 고유의 pre-Spec-Kit feature tree이며, Spec Kit 자체의 `specs/<NNN-feature>/` 구조로 migrate되지 않았습니다 — 이 변환에는 위 제약사항에서 설명한 실제 `specify` CLI가 필요합니다. `specs/001-push-event-delivery/verification.md`도 (이제 `AGENTS.md`로 merge되어 삭제된) `.ai/constitution/agent-behavior.md`를 두 곳에서 여전히 참조하고 있으며, 그 migration이 이루어지기 전까지는 수정하지 않은 채로 남아 있습니다.
 
 ## Phase 1 exit criteria (met)
 

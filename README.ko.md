@@ -19,12 +19,13 @@ Event-driven data integration platform입니다. RelayHub는 Source system으로
 | Architecture: structure, system design | [`docs/architecture/`](docs/architecture/) |
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
-| Engineering/agent principles | [`.ai/constitution/`](.ai/constitution/) |
+| Durable engineering principles | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |
+| Document ownership / `.ko.md` policy | [`.ai/constitution/documentation-policy.md`](.ai/constitution/documentation-policy.md) |
 | Feature specs | [`specs/001-push-event-delivery/`](specs/001-push-event-delivery/), [`specs/002-retry-dlq-replay/`](specs/002-retry-dlq-replay/), [`specs/003-kafka-outbox/`](specs/003-kafka-outbox/), [`specs/004-observability/`](specs/004-observability/) |
 
-## Working with Claude Code
+## Agent와 함께 작업하기
 
-[`CLAUDE.md`](CLAUDE.md)에서 시작하세요 — 이 파일은 [`docs/architecture/agent-context-model.md`](docs/architecture/agent-context-model.md)에 정의된 순서로 위 문서들로 안내합니다. 이 README, `CLAUDE.md`, 그리고 원래의 design conversation은 entry point일 뿐이며, 위의 repository 문서들이 authoritative합니다 (`docs/decisions/ADR-0001-repository-first-context.md` 참고).
+[`AGENTS.md`](AGENTS.md)에서 시작하세요 — 이 파일은 모든 지원 agent(현재는 Claude Code뿐)를 위한 sole entry point이며, [`docs/architecture/agent-context-model.md`](docs/architecture/agent-context-model.md)에 정의된 순서로 위 문서들로 안내합니다. 이 README, `AGENTS.md`, 그리고 원래의 design conversation은 entry point일 뿐이며, 위의 repository 문서들이 authoritative합니다 (`docs/decisions/ADR-0001-repository-first-context.md` 참고).
 
 ## Running locally
 

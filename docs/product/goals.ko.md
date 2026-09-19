@@ -13,7 +13,7 @@
 
 ## Success criteria (bootstrap acceptance test)
 
-Agent Development Starter의 model에서 재사용됨: 공유된 conversation link 없이 오직 `CLAUDE.md`에서만 시작하는 새로운 agent session은 다음 질문에 정확히 답할 수 있어야 합니다:
+Agent Development Starter의 model에서 재사용됨: 공유된 conversation link 없이 오직 `AGENTS.md`에서만 시작하는 새로운 agent session은 다음 질문에 정확히 답할 수 있어야 합니다:
 
 - 이 project는 무엇인가?
 - 왜 존재하는가?

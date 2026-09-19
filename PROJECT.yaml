@@ -23,7 +23,10 @@ supported_agents:
   initial:
     - claude-code
   policy: agent-agnostic-core
+  entrypoint: AGENTS.md   # sole adapter for every supported agent — see agent-dev-starter's ADR-0011
 
+# Prose definitions for every principle below now live in .specify/memory/constitution.md
+# (see agent-dev-starter's ADR-0013) — no bare name is defined only here.
 principles:
   - repository-first-context
   - agent-agnostic-core
@@ -50,16 +53,29 @@ current_phase:
     delete, a dark theme, and several rounds of visual polish on the Live
     page. See docs/status/current-state.md for the current detailed list.
 
+standards:
+  agents_md: AGENTS.md
+  spec_kit:
+    # Pinned by agent-dev-starter's ADR-0010; NOT yet actually installed in this repository
+    # (no working Python/uv/pip toolchain available as of this migration) — see
+    # docs/status/current-state.md, "Known constraints". Bump only via a new ADR.
+    pinned_version: specify-cli==1.0.8
+    memory: .specify/memory/
+  skills:
+    claude_code: .claude/skills/
+
 context:
   human_entrypoint: README.md
-  agent_entrypoints:
-    claude_code: CLAUDE.md
-  constitution: .ai/constitution/
+  agent_entrypoint: AGENTS.md
+  specify_constitution: .specify/memory/constitution.md
+  documentation_policy: .ai/constitution/documentation-policy.md
   product: docs/product/
   architecture: docs/architecture/
   decisions: docs/decisions/
   current_state: docs/status/current-state.md
-  specs: specs/
+  specs: specs/   # this project's own pre-Spec-Kit specs/001-006 tree — real content, not yet
+                   # migrated into Spec Kit's own specs/<NNN-feature>/ structure (pending a
+                   # real `specify init` run; see docs/status/current-state.md)
 
 delivery:
   implementation_present: true

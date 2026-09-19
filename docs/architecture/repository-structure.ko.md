@@ -7,9 +7,11 @@
 | Path | Owner responsibility | Must not become |
 |---|---|---|
 | `README.md` | 사람을 위한 소개와 navigation | 완전한 design specification |
-| `PROJECT.yaml` | Structured project identity와 phase | 서술형 architecture document |
-| `CLAUDE.md` | Claude Code bootstrap adapter | 공유 policy의 중복 |
-| `.ai/constitution/` | Durable engineering 및 agent principle | Project feature requirement |
+| `PROJECT.yaml` | Structured project identity, phase, pinned standard version | 서술형 architecture document |
+| `AGENTS.md` | 모든 지원 agent를 위한 sole bootstrap adapter와 behavioral contract(`agent-dev-starter`의 `ADR-0011`) | 공유 policy source, 또는 여러 개의 중복 adapter 중 하나 |
+| `.specify/memory/constitution.md` | Durable engineering principle (GitHub Spec Kit 자체의 constitution 역할 — `agent-dev-starter`의 `ADR-0013`) | Project feature requirement |
+| `.ai/constitution/documentation-policy.md` | Document ownership과 `.ko.md` language policy — 어떤 open standard도 이것을 소유하지 않음 | Project feature requirement이나 engineering principle(그것들은 `.specify/memory/constitution.md`에 있음) |
+| `.claude/skills/` | maintainer가 실제 workflow를 설명한 이후의, 실제로 agent가 discover하는 Skill directory(`agent-dev-starter`의 `ADR-0003`/`ADR-0012`) | Claude Code가 실제로 읽지 않는 `.ai/skills/`나 그 밖의 임의의 path |
 | `docs/product/` | Problem, users, goals, scope | Implementation instruction |
 | `docs/architecture/` | Structure, boundaries, context model, system design | Decision history |
 | `docs/decisions/` | 중요한 decision과 rationale | 변경 가능한 current-state checklist |
@@ -18,18 +20,22 @@
 | `src/` | Application source (Java/Spring Boot) | Documentation나 spec |
 | `scripts/` | 반복 가능한 verification/smoke-test script | Ad hoc한 일회성 script |
 
-## Planned top-level layout
+## Top-level layout
 
 ```text
 relayhub-java/
 ├── README.md
-├── CLAUDE.md
+├── AGENTS.md
 ├── PROJECT.yaml
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── docker-compose.yml
 ├── .ai/
 │   └── constitution/
+│       └── documentation-policy.md
+├── .specify/
+│   └── memory/
+│       └── constitution.md
 ├── docs/
 │   ├── product/
 │   ├── architecture/
@@ -52,15 +58,15 @@ relayhub-java/
     └── workflows/
 ```
 
-`build.gradle.kts`, `settings.gradle.kts`, `docker-compose.yml`, `src/`, `scripts/`, `.github/workflows/`는 Phase 1 implementation이 시작될 때 생성됩니다. 현재 `v1-foundation` phase에는 아직 존재하지 않습니다(`docs/status/current-state.md` 참고).
+`specs/001-push-event-delivery/`부터 `specs/006-field-registry/`까지는 이 project 고유의, GitHub Spec Kit 도입 이전의 feature tree입니다. 아직 Spec Kit 자체의 `specs/<NNN-feature>/` 구조로 migrate되지 않았습니다(실제 `specify init` 실행을 기다리는 중 — `docs/status/current-state.md`의 "Known constraints" 참고). `.specify/`의 나머지는 실제로 설치되면 pinned Spec Kit CLI에 속하며, 이 repository가 hand-fork하는 것이 아닙니다.
 
 ## Dependency direction
 
-Adapter와 이 repository 자체의 README/spec은 authoritative document를 향해 안쪽으로 가리킬 수 있습니다. Authoritative document(`PROJECT.yaml`, `.ai/constitution/`, `docs/product/`, `docs/architecture/`, accepted ADR)는 adapter의 문구나 external conversation history — 이 project가 bootstrap된 원래의 design document를 포함하여 — 에 의존하지 않습니다.
+Adapter와 이 repository 자체의 README/spec은 authoritative document를 향해 안쪽으로 가리킬 수 있습니다. Authoritative document(`PROJECT.yaml`, `.specify/memory/constitution.md`, `.ai/constitution/documentation-policy.md`, `docs/product/`, `docs/architecture/`, accepted ADR)는 adapter의 문구나 external conversation history — 이 project가 bootstrap된 원래의 design document를 포함하여 — 에 의존하지 않습니다.
 
 ```text
 README ───────────────┐
-CLAUDE.md ────────────┼──> PROJECT.yaml + constitution + docs/product + docs/architecture
+AGENTS.md ────────────┼──> PROJECT.yaml + .specify/memory/constitution.md + docs/product + docs/architecture
 current-state ────────┘                 │
 specs/<feature> ─────────────────────────┼──> accepted ADRs
 ```

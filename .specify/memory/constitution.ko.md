@@ -1,8 +1,8 @@
-> 이 문서는 [`engineering-principles.md`](engineering-principles.md)의 한국어 번역본입니다. 영어 원본이 canonical이며, 충돌 시 영어 원본이 우선합니다.
+> 이 문서는 [`constitution.md`](constitution.md)의 한국어 번역본입니다. 영어 원본이 canonical이며, 충돌 시 영어 원본이 우선합니다. Agent bootstrap은 이 번역본이 아니라 영어 원본을 읽습니다.
 
-# Engineering Principles
+# Constitution
 
-이 문서는 특정 technology 선택이나 개별 feature보다 오래 지속되어야 할 engineering principle을 정의합니다. Agent Development Starter로부터 채택되어 RelayHub를 위해 검토되었으며, 이 project 고유의 design에 특화된 principle로 확장되었습니다 (아래 "RelayHub-specific principles" 참고).
+이 문서는 GitHub Spec Kit이 사용하는 의미에서의 project constitution입니다: 모든 spec, plan, implementation이 그에 비추어 평가되는 durable principle입니다. 이 문서는 이전의 `.ai/constitution/engineering-principles.md`를 대체합니다(`agent-dev-starter`의 `ADR-0013` 참고) — 이제 이 principle들이 사는 유일한 곳입니다. 참고: 이 repository에는 아직 실제 Spec Kit CLI가 설치되지 않았습니다(`docs/status/current-state.md`의 "Known constraints" 참고); 이 파일은 `specify init`을 실행하기에 앞서, Spec Kit이 이 경로에서 기대하는 durable-principles document로서 수동으로 작성되었습니다.
 
 **Status: accepted** (maintainer review, 2026-09-10). Spec 001과 Spec 002 전반에 걸쳐 실제로 적용된 뒤 수정 없이 그대로 확정되었습니다 — 예를 들어 explicit architecture를 위한 ADR-0001/0002/0003, verifiable outcome을 위한 실제 H2 및 수동 Postgres 검증(단순 compilation이 아닌), minimal coherent change를 위한 Spec 002 scope 분리 등입니다.
 
@@ -24,13 +24,13 @@ architectural boundary나 convention을 조용히 변경하지 마세요. 장기
 
 ## Agent-agnostic core
 
-product intent, architecture, decision, engineering principle을 agent-specific instruction file에 묶지 마세요. agent adapter는 공유 source로 해당 agent를 안내하는 데 필요한 차이점만 포함할 수 있습니다.
+product intent, architecture, decision, 이 principle들을 agent-specific instruction file에 묶지 마세요. `AGENTS.md`는 어떤 agent라도 이 공유 source를 찾고 따르는 데 필요한 routing과 behavioral contract만 포함할 수 있습니다.
 
 ## Separated boundaries
 
 domain concern을 external system 및 tool integration과 분리하세요. RelayHub의 구체적인 module boundary는 `docs/architecture/system-design.md`를 참고하세요.
 
-## RelayHub-specific principles
+## Project-specific principles
 
 accepted RelayHub design context(2026-09-10)에서 직접 가져온 원칙입니다:
 

@@ -2,13 +2,13 @@
 
 # Agent Context Model
 
-Agent Development Starter로부터 project-specific 변경 없이 채택되었습니다.
+Agent Development Starter로부터 채택되었으며, ADS V2(`AGENTS.md`, GitHub Spec Kit, Agent Skills — `agent-dev-starter`의 `ADR-0010`부터 `ADR-0013`까지 참고)에 맞춰 갱신된 것 외에는 project-specific 변경이 없습니다.
 
 ## Context classes
 
 ### Permanent context
 
-project purpose, scope, architecture, engineering principles, accepted decision을 포함하여 session 간에 지속되는 정보입니다. `PROJECT.yaml`, `.ai/constitution/`, product 및 architecture 문서, ADR에 저장합니다.
+project purpose, scope, architecture, engineering principles, accepted decision을 포함하여 session 간에 지속되는 정보입니다. `PROJECT.yaml`, `.specify/memory/constitution.md`, `.ai/constitution/documentation-policy.md`, product 및 architecture 문서, ADR에 저장합니다.
 
 ### Working context
 
@@ -24,9 +24,9 @@ current phase, 최근 완료된 작업, next action, open decision을 포함하�
 
 ## Bootstrap order
 
-1. `CLAUDE.md`에서 시작합니다.
-2. `PROJECT.yaml`을 읽어 project와 phase를 파악합니다.
-3. constitution(`.ai/constitution/`)을 읽어 behavioral boundary를 이해합니다.
+1. `AGENTS.md`(sole adapter — `agent-dev-starter`의 `ADR-0011`)에서 시작합니다.
+2. `PROJECT.yaml`을 읽어 project, phase, pinned standard version을 파악합니다.
+3. `.specify/memory/constitution.md`(그리고 document 관련 사항은 `.ai/constitution/documentation-policy.md`)를 읽어 behavioral boundary를 이해합니다.
 4. product 문서(`docs/product/`)를 읽어 목적과 scope를 이해합니다.
 5. architecture 문서(`docs/architecture/`)를 읽어 구조와 책임을 이해합니다.
 6. 현재 작업과 관련된 accepted ADR(`docs/decisions/`)을 읽습니다.
@@ -46,4 +46,4 @@ current phase, 최근 완료된 작업, next action, open decision을 포함하�
 
 ## Bootstrap acceptance test
 
-clean session에서 external link 없이 `CLAUDE.md`만 제공합니다. agent가 `docs/product/goals.md`("Success criteria")의 다섯 가지 acceptance question에 대해, 모든 답변이 repository documentation으로 추적 가능하게 답할 수 있으면 context recovery가 성공한 것입니다.
+clean session에서 external link 없이 `AGENTS.md`만 제공합니다. agent가 `docs/product/goals.md`("Success criteria")의 다섯 가지 acceptance question에 대해, 모든 답변이 repository documentation으로 추적 가능하게 답할 수 있으면 context recovery가 성공한 것입니다.

@@ -1,6 +1,6 @@
-# Engineering Principles
+# Constitution
 
-This document defines engineering principles that should outlive a technology choice or an individual feature. Adopted from Agent Development Starter and reviewed for RelayHub; extended with principles specific to this project's design (see "RelayHub-specific principles" below).
+This is the project's constitution in the sense GitHub Spec Kit uses the term: durable principles every spec, plan, and implementation is evaluated against. It replaces the old `.ai/constitution/engineering-principles.md` (see `agent-dev-starter`'s `ADR-0013`) — this is now the one place these principles live. Note: the real Spec Kit CLI has not been installed in this repository yet (see `docs/status/current-state.md`, "Known constraints"); this file is hand-authored as the durable-principles document Spec Kit expects at this path, in advance of running `specify init`.
 
 **Status: accepted** (maintainer review, 2026-09-10). Confirmed as-is, without amendment, after being exercised in practice across Spec 001 and Spec 002 — e.g. ADR-0001/0002/0003 for explicit architecture, real H2 and manual Postgres verification (not just compilation) for verifiable outcomes, and the Spec 002 scope split for minimal coherent change.
 
@@ -22,13 +22,13 @@ Produce outcomes that can be verified. Run automated checks when they exist; oth
 
 ## Agent-agnostic core
 
-Do not bind product intent, architecture, decisions, or engineering principles to an agent-specific instruction file. An agent adapter may contain only the differences required to route its agent to shared sources.
+Do not bind product intent, architecture, decisions, or these principles to an agent-specific instruction file. `AGENTS.md` may contain only the routing and behavioral contract needed for any agent to find and follow these shared sources.
 
 ## Separated boundaries
 
 Separate domain concerns from external systems and tool integrations. See `docs/architecture/system-design.md` for RelayHub's concrete module boundaries.
 
-## RelayHub-specific principles
+## Project-specific principles
 
 Sourced directly from the accepted RelayHub design context (2026-09-10):
 

@@ -15,8 +15,9 @@ Conversations and external links (including the original design context this pro
 - Structure and context model: `docs/architecture/`
 - Significant decisions and rationale: `docs/decisions/`
 - Current progress, next work, and open decisions: `docs/status/current-state.md`
-- Durable development principles: `.ai/constitution/`
-- Tool-specific bootstrap differences: agent adapters (`CLAUDE.md`)
+- Durable engineering principles: `.specify/memory/constitution.md` (GitHub Spec Kit's own constitution role — see `agent-dev-starter`'s `ADR-0013`)
+- Document ownership and the `.ko.md` language policy — no open standard owns this: this file
+- Bootstrap adapter and behavioral contract for every supported agent: `AGENTS.md` (sole adapter — see `agent-dev-starter`'s `ADR-0011`)
 - Feature-level specification, contracts, plan, tasks, verification: `specs/<feature>/`
 
 Do not duplicate the same policy across files. When a summary is useful, link to the authoritative path.
