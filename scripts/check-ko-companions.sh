@@ -8,6 +8,11 @@
 # (ADR-0009), gating on the missing-companion count. Pass --missing-only in CI: a fresh
 # checkout gives every file close to the same mtime, so the staleness heuristic is
 # meaningless there and would only produce noise.
+#
+# Excludes vendored Spec Kit assets (.specify/templates|scripts|workflows|integrations,
+# and any .claude/skills/speckit-*/.agents/skills/speckit-* skill) -- upstream content this
+# project does not author and that is replaced wholesale on every version bump (ADR-0014).
+# .specify/memory/ and any non-speckit-prefixed skill remain mandatory.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -30,7 +35,10 @@ while IFS= read -r -d '' f; do
     stale=$((stale + 1))
   fi
 done < <(find . \
-  \( -path '*/node_modules' -o -path '*/.git' -o -path '*/build' -o -path '*/dist' -o -path '*/out' \) -prune \
+  \( -path '*/node_modules' -o -path '*/.git' -o -path '*/build' -o -path '*/dist' -o -path '*/out' \
+     -o -path '*/.specify/templates' -o -path '*/.specify/scripts' \
+     -o -path '*/.specify/workflows' -o -path '*/.specify/integrations' \
+     -o -path '*/skills/speckit-*' \) -prune \
   -o -type f -name '*.md' ! -name '*.ko.md' -print0)
 
 echo "$missing missing companion(s), $stale possibly-stale companion(s)."
