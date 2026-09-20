@@ -2,6 +2,10 @@
 
 # Spec 002: Implementation Plan
 
+**Branch**: `002-retry-dlq-replay` | **Date**: 2026-09-10 | **Spec**: [link to ../spec.md](spec.md)
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 1. `delivery.DeliveryState` enum (`PENDING`, `SUCCEEDED`, `DEAD`)과 `delivery.Delivery` entity
    (`eventId`, `subscriptionId`, `targetId`, `state`, `attemptCount`, timestamps) 및 repository를 추가한다.
 2. `DeliveryAttempt`에 `deliveryId` FK를 추가한다; 기존의 attempt별 필드는 그대로 유지한다.

@@ -2,6 +2,14 @@
 
 # Spec 004: Observability / Portfolio Quality
 
+**Feature Branch**: `004-observability`
+
+**Created**: 2026-09-10
+
+**Status**: Implemented
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 ## Summary
 
 원래 design의 roadmap(`docs/product/goals.md`, "Long-term direction", Phase 3)에서 마지막 단계로,

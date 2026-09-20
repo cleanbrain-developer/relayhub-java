@@ -1,5 +1,13 @@
 # Spec 003: Kafka-Backed Delivery via Transactional Outbox
 
+**Feature Branch**: `003-kafka-outbox`
+
+**Created**: 2026-09-10
+
+**Status**: Implemented
+
+**Input**: Not recorded — spec predates Spec Kit adoption
+
 ## Summary
 
 Replaces Spec 002's in-process, synchronous retry loop (which runs inside the ingress request and

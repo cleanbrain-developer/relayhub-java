@@ -2,6 +2,14 @@
 
 # Spec 006: Source/Target Field Registry (proposal — not yet implemented)
 
+**Feature Branch**: `006-field-registry`
+
+**Created**: 2026-09-12
+
+**Status**: Implemented
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 ## Problem
 
 Subscription 생성/편집(`MappingBuilder`, Spec 005 follow-up)은 mapping *UI*는 개선했지만

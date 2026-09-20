@@ -1,5 +1,13 @@
 # Spec 004: Observability / Portfolio Quality
 
+**Feature Branch**: `004-observability`
+
+**Created**: 2026-09-10
+
+**Status**: Implemented
+
+**Input**: Not recorded — spec predates Spec Kit adoption
+
 ## Summary
 
 The last phase in the original design's roadmap (`docs/product/goals.md`, "Long-term direction",

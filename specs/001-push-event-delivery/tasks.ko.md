@@ -2,4 +2,6 @@
 
 # Spec 001: Tasks
 
+**Input**: Design documents from `specs/001-push-event-delivery/`
+
 아직 세분화되지 않음. `plan.md`가 작성된 이후, `docs/product/goals.md`의 goal 1(어느 한 부분을 깊이 있게 만들기 전에 전체 경로를 end-to-end로 증명하는 것)에 따라 vertical-slice 단위의 task로 도출될 예정이다.

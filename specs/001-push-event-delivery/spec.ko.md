@@ -2,6 +2,14 @@
 
 # Spec 001: Push Event Delivery (First Vertical Slice)
 
+**Feature Branch**: `001-push-event-delivery`
+
+**Created**: 2026-09-10
+
+**Status**: Implemented
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 ## Summary
 
 RelayHub의 첫 번째 얇은 end-to-end vertical slice: Source/Source Event/Target/Subscription를 등록하고, 자동 생성된 Ingress URL로 push event를 수신하여, 이를 추출하고 표준화해 Canonical Event로 만들고, Subscription에 따라 매핑한 뒤 각 Target에 HTTP로 전달한다.

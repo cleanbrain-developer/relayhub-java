@@ -2,6 +2,8 @@
 
 # Spec 002: Tasks
 
+**Input**: Design documents from `specs/002-retry-dlq-replay/`
+
 - [x] `Delivery` entity, `DeliveryState` enum, `DeliveryRepository`.
 - [x] `DeliveryAttempt.deliveryId` FK.
 - [x] Backoff를 포함한 `DeliveryService` retry loop, `Delivery` state 전이.

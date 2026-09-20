@@ -2,6 +2,10 @@
 
 # Spec 003: Implementation Plan
 
+**Branch**: `003-kafka-outbox` | **Date**: 2026-09-10 | **Spec**: [link to ../spec.md](spec.md)
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 1. `build.gradle.kts`: `spring-kafka`를 추가한다; `testImplementation`에 (`@EmbeddedKafka`를 위한)
    `spring-kafka-test`와 (async outcome에 대한 polling assertion을 위한) `org.awaitility:awaitility`를
    추가한다.

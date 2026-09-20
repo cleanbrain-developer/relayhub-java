@@ -2,6 +2,8 @@
 
 # Spec 004: Tasks
 
+**Input**: Design documents from `specs/004-observability/`
+
 - [x] Actuator + Micrometer Prometheus registry; `/actuator/prometheus`, `/actuator/health` 노출.
 - [x] `IngressService`, `OutboxPublisher`, `DeliveryService`에 custom counter/timer 추가.
 - [x] `docker-compose.yml`: Prometheus(scrape config) + Grafana(provisioned datasource + dashboard).

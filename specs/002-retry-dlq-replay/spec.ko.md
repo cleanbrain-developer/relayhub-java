@@ -2,6 +2,14 @@
 
 # Spec 002: Retry, DLQ, Replay, Idempotency (without Kafka/Outbox yet)
 
+**Feature Branch**: `002-retry-dlq-replay`
+
+**Created**: 2026-09-10
+
+**Status**: Implemented
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 ## Summary
 
 Spec 001의 single-attempt synchronous delivery를 retry 가능하고, 관측 가능하며, 복구 가능한 형태로

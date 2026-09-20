@@ -2,6 +2,14 @@
 
 # Spec 005: Admin & Observability Console
 
+**Feature Branch**: `005-admin-console`
+
+**Created**: 2026-09-11
+
+**Status**: Implemented
+
+**Input**: 기록되지 않음 — 이 spec은 Spec Kit 도입 이전에 작성됨
+
 ## Summary
 
 지금까지 만들어진 RelayHub의 모든 기능(Spec 001-004)은 REST API나 `curl`/script를 통해서만

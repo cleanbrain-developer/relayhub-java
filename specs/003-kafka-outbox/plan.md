@@ -1,5 +1,9 @@
 # Spec 003: Implementation Plan
 
+**Branch**: `003-kafka-outbox` | **Date**: 2026-09-10 | **Spec**: [link to ../spec.md](spec.md)
+
+**Input**: Not recorded — spec predates Spec Kit adoption
+
 1. `build.gradle.kts`: add `spring-kafka`; `testImplementation` `spring-kafka-test` (for
    `@EmbeddedKafka`) and `org.awaitility:awaitility` (for polling assertions on async outcomes).
 2. `docker-compose.yml`: add a single-node KRaft Kafka service (`apache/kafka`, no Zookeeper).

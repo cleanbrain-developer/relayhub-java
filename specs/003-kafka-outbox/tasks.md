@@ -1,5 +1,7 @@
 # Spec 003: Tasks
 
+**Input**: Design documents from `specs/003-kafka-outbox/`
+
 - [x] `spring-kafka`/`spring-kafka-test`/`awaitility` dependencies.
 - [x] `docker-compose.yml` Kafka service (KRaft, single node, `apache/kafka:3.8.0`).
 - [x] `OutboxStatus`, `OutboxEvent`, `OutboxEventRepository`.

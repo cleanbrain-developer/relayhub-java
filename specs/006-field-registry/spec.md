@@ -1,5 +1,13 @@
 # Spec 006: Source/Target Field Registry (proposal — not yet implemented)
 
+**Feature Branch**: `006-field-registry`
+
+**Created**: 2026-09-12
+
+**Status**: Implemented
+
+**Input**: Not recorded — spec predates Spec Kit adoption
+
 ## Problem
 
 Subscription creation/editing (`MappingBuilder`, Spec 005 follow-up) improved the mapping *UI*

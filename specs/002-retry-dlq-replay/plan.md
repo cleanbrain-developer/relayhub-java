@@ -1,5 +1,9 @@
 # Spec 002: Implementation Plan
 
+**Branch**: `002-retry-dlq-replay` | **Date**: 2026-09-10 | **Spec**: [link to ../spec.md](spec.md)
+
+**Input**: Not recorded — spec predates Spec Kit adoption
+
 1. `delivery.DeliveryState` enum (`PENDING`, `SUCCEEDED`, `DEAD`) and `delivery.Delivery` entity
    (`eventId`, `subscriptionId`, `targetId`, `state`, `attemptCount`, timestamps) + repository.
 2. Add `deliveryId` FK to `DeliveryAttempt`; keep its existing per-attempt fields.

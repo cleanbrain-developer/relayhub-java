@@ -1,5 +1,13 @@
 # Spec 001: Push Event Delivery (First Vertical Slice)
 
+**Feature Branch**: `001-push-event-delivery`
+
+**Created**: 2026-09-10
+
+**Status**: Implemented
+
+**Input**: Not recorded — spec predates Spec Kit adoption
+
 ## Summary
 
 The first thin, end-to-end vertical slice of RelayHub: register a Source/Source Event/Target/Subscription, receive a push event on an auto-generated Ingress URL, extract and standardize it into a Canonical Event, map it per Subscription, and deliver it to each Target over HTTP.
