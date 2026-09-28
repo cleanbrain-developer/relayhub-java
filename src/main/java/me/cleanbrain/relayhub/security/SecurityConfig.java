@@ -79,6 +79,11 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/api/subscriptions/**", configuration);
         source.registerCorsConfiguration("/api/dlq/**", configuration);
         source.registerCorsConfiguration("/api/live/**", configuration);
+        // Added for the Live activity drill-down on developer.cleanbrain.me: clicking a "delivery"
+        // row in the Recent Activity table looks up that specific attempt's request/response/error
+        // detail by id (GET /api/delivery-attempts/{id}) -- the parent delivery's retry history via
+        // GET /api/deliveries/{deliveryId}/attempts was already covered by /api/deliveries/** above.
+        source.registerCorsConfiguration("/api/delivery-attempts/**", configuration);
         return source;
     }
 

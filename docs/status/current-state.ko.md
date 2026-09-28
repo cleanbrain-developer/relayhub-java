@@ -2,7 +2,7 @@
 
 # Current State
 
-Last updated: 2026-09-20
+Last updated: 2026-09-29
 
 ## Current phase
 
@@ -79,6 +79,8 @@ Last updated: 2026-09-20
   - `scripts/check-ko-companions.sh`를 `agent-dev-starter`(그곳의 `ADR-0014`)로부터 업데이트하여, `.specify/templates|scripts|workflows|integrations`와 모든 `.claude/skills/speckit-*`를 mandatory `.ko.md` check에서 제외했습니다 — 이 내용은 vendor된 upstream Spec Kit output이며, 매 version bump마다 전체가 교체되기 때문에 기존의 `node_modules` exclusion과 유사합니다. `.specify/memory/constitution.md`(와 변경되지 않은 기존 `.ko.md` companion)는 여전히 mandatory이며, 나머지 모든 것도 마찬가지입니다. `scripts/check-ko-companions.sh --missing-only`를 실행하여 누락이 0임을 확인했습니다.
   - **확정된 결정, 열린 질문이 아님**: CLI를 이제 사용할 수 있게 되었더라도 `specs/001-push-event-delivery/`부터 `specs/006-field-registry/`까지를 Spec Kit 자체의 `specs/<NNN-feature>/` 구조로 소급 migrate하지 **않습니다**. 이들은 Spec Kit 도입 이전부터 존재했고 이미 출시된 여섯 개의 실제 feature를 기록하고 있으며, 소급 변환은 검증상의 이득 없이 실제 project history를 손상시킬 위험이 있다고 판단했습니다 — 영구적으로 문서화된 예외로 남습니다. Spec Kit의 numbering과 `.specify/scripts/bash/create-new-feature.sh`는 앞으로 새로 만들어지는 feature에만 적용됩니다.
 - **`specs/001`부터 `specs/006`까지의 구조적 metadata 정렬** (2026-09-20, 위의 directory-structure 결정과는 별개): 기존의 각 `spec.md`가 `.specify/templates/spec-template.md`의 field 스타일에 맞춘 `**Feature Branch**`/`**Created**`/`**Status**`/`**Input**` header를 얻었습니다(날짜와 status는 git history 기준: 001-004는 Implemented, 2026-09-10 생성; 005는 Implemented, 2026-09-11 생성; 006은 Implemented, 2026-09-12 생성 — 006의 제목은 여전히 "proposal — not yet implemented"라고 되어 있지만, 그 문서 자체의 "Status" 절과 이 파일이 이미 2026-09-12에 구현되어 배포되었다고 기록하고 있었으므로, 그 낡은 제목 문구는 "내용 보존" 원칙에 따라 그대로 두었지만 metadata의 `Status` field 값을 정하는 데는 사용하지 않았습니다); `plan.md`(001-003)는 대응하는 `**Branch**|**Date**|**Spec**` header를 얻었고, 001의 아직 작성되지 않은 plan placeholder 아래에는 historical note가 추가되었습니다; `tasks.md`(001-004)는 대응하는 `**Input**: Design documents from ...` header를 얻었습니다. 어떤 본문도 다시 쓰지 않았고, User Scenarios/Technical Context/Constitution Check 섹션을 새로 만들어내지 않았으며, `contracts.md`/`verification.md`는 그대로 두었습니다 — maintainer의 명시적인 "구조만 정렬, 내용은 보존" 결정에 따른 것입니다. `.ko.md` companion도 같은 변경에서 업데이트되었습니다.
+
+- **`developer.cleanbrain.me`를 위한 세 번째 CORS 확장** (2026-09-29, 같은 `CorsConfigurationSource` bean, 여전히 `GET`-only, 여전히 그 하나의 origin): `SecurityConfig.java`에 `source.registerCorsConfiguration("/api/delivery-attempts/**", configuration);`를 추가했습니다. `developer.cleanbrain.me`가 Recent Activity row에 click-to-expand drill-down을 추가하는 중이며, 개별 attempt의 request/response/error 상세를 위해 `GET /api/delivery-attempts/{id}`(이미 public이지만 아직 CORS-whitelist되지 않음)가 필요합니다; 상위 delivery의 전체 재시도 이력 endpoint(`GET /api/deliveries/{deliveryId}/attempts`)는 이미 기존 `/api/deliveries/**` entry로 커버되어 있어서 거기엔 변경이 필요 없었습니다.
 
 ## In progress
 
