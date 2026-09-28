@@ -79,6 +79,13 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/api/subscriptions/**", configuration);
         source.registerCorsConfiguration("/api/dlq/**", configuration);
         source.registerCorsConfiguration("/api/live/**", configuration);
+        // Added for the Live activity drill-down on developer.cleanbrain.me: clicking a "delivery"
+        // row in the Recent Activity table looks up that specific attempt's request/response/error
+        // detail by id (GET /api/delivery-attempts/{id}) -- the parent delivery's retry history via
+        // GET /api/deliveries/{deliveryId}/attempts was already covered by /api/deliveries/** above.
+        // Both are public now that the admin gate on Attempt data was reopened (see the
+        // authorizeHttpRequests comment below) -- this bean only extends that to cross-origin reads.
+        source.registerCorsConfiguration("/api/delivery-attempts/**", configuration);
         return source;
     }
 
@@ -98,20 +105,22 @@ public class SecurityConfig {
                         // not read-only observability data like /api/metrics/**, so its GET status
                         // check must also be excepted from the blanket "every GET is public" rule.
                         .requestMatchers(HttpMethod.GET, "/api/simulator/**").hasRole("ADMIN")
-                        // Unlike every other public GET in this app (metadata: names, statuses,
-                        // counts), an Attempt carries the actual request/response bodies exchanged
-                        // with a Target — real payload content, not just outcome. That's sensitive
-                        // enough to gate behind admin auth even though it's read-only (self-review
-                        // finding, 2026-09-17). Confirmed safe: developer.cleanbrain.me's ported
-                        // Live view (see the CORS bean above) reads /api/deliveries/summary and
-                        // /api/live/stream's attemptId field but never actually calls either of
-                        // these to resolve it, so this doesn't break that integration.
-                        .requestMatchers(HttpMethod.GET, "/api/deliveries/*/attempts").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/delivery-attempts/**").hasRole("ADMIN")
-                        // Same reasoning as the attempts endpoints above: the canonical Event carries
-                        // the raw ingress payload verbatim, not just metadata (completeness-audit
-                        // finding, 2026-09-18 — this endpoint existed but was never gated when the
-                        // attempts endpoints were locked down).
+                        // An Attempt carries the actual request/response bodies exchanged with a
+                        // Target — real payload content, not just outcome. This was gated behind
+                        // admin auth for that reason (self-review finding, 2026-09-17), then reopened
+                        // as public (2026-09-29, maintainer decision): every Source/Target attached to
+                        // this deployment is a demo system under relayhub-demo-systems, generating
+                        // synthetic traffic only — there is no real target integration, and none is
+                        // planned, so there is no real payload to protect. developer.cleanbrain.me's
+                        // Live activity drill-down (see that repo's ADR-0004) reads this directly.
+                        // Revisit if a real (non-demo) Target is ever connected.
+                        // The canonical Event carries the raw ingress payload verbatim, not just
+                        // metadata (completeness-audit finding, 2026-09-18 — this endpoint existed
+                        // but was never gated when the attempts endpoints above were first locked
+                        // down). Left gated even after the Attempt endpoints were reopened above:
+                        // unlike Attempt (Target-bound, demo-only traffic confirmed), no equivalent
+                        // "this data source is permanently synthetic" review has been done for Event
+                        // ingress payloads specifically — revisit deliberately if/when it is.
                         .requestMatchers(HttpMethod.GET, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .requestMatchers("/ingress/v1/**").permitAll()

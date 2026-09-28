@@ -2,7 +2,7 @@
 
 # Current State
 
-Last updated: 2026-09-20
+Last updated: 2026-09-29
 
 ## Current phase
 
@@ -81,6 +81,7 @@ Last updated: 2026-09-20
 - **`specs/001`부터 `specs/006`까지의 구조적 metadata 정렬** (2026-09-20, 위의 directory-structure 결정과는 별개): 기존의 각 `spec.md`가 `.specify/templates/spec-template.md`의 field 스타일에 맞춘 `**Feature Branch**`/`**Created**`/`**Status**`/`**Input**` header를 얻었습니다(날짜와 status는 git history 기준: 001-004는 Implemented, 2026-09-10 생성; 005는 Implemented, 2026-09-11 생성; 006은 Implemented, 2026-09-12 생성 — 006의 제목은 여전히 "proposal — not yet implemented"라고 되어 있지만, 그 문서 자체의 "Status" 절과 이 파일이 이미 2026-09-12에 구현되어 배포되었다고 기록하고 있었으므로, 그 낡은 제목 문구는 "내용 보존" 원칙에 따라 그대로 두었지만 metadata의 `Status` field 값을 정하는 데는 사용하지 않았습니다); `plan.md`(001-003)는 대응하는 `**Branch**|**Date**|**Spec**` header를 얻었고, 001의 아직 작성되지 않은 plan placeholder 아래에는 historical note가 추가되었습니다; `tasks.md`(001-004)는 대응하는 `**Input**: Design documents from ...` header를 얻었습니다. 어떤 본문도 다시 쓰지 않았고, User Scenarios/Technical Context/Constitution Check 섹션을 새로 만들어내지 않았으며, `contracts.md`/`verification.md`는 그대로 두었습니다 — maintainer의 명시적인 "구조만 정렬, 내용은 보존" 결정에 따른 것입니다. `.ko.md` companion도 같은 변경에서 업데이트되었습니다.
 
 - **`/api/delivery-attempts/**`에 대한 세 번째 CORS 확장을 추가했다가, 같은 날 되돌렸다**: `developer.cleanbrain.me`가 click-to-expand activity drill-down을 만들고 있었고 attempt 수준 상세가 필요했다. 그러나 CORS entry를 추가하는 것만으로는 접근 권한이 생기지 않는다 — `/api/deliveries/*/attempts`와 `/api/delivery-attempts/**` 둘 다 `SecurityFilterChain`에서 `hasRole("ADMIN")`으로 gate되어 있다(2026-09-17의 self-review finding: Attempt는 단순한 결과 metadata가 아니라 real한 request/response payload content를 담고 있어서, read-only이더라도 admin-only로 유지할 만큼 민감하다고 판단했다). public 사이트는 client-side에 credential을 심지 않고서는 admin으로 인증할 수 없고, 그건 절대 허용되지 않으므로, 설계된 대로의 drill-down은 이 API에 대해 동작할 수 없다. 오해를 일으키고 기능적으로 무의미한 allowlist 규칙을 남겨두는 대신 CORS entry를 되돌렸다(`git revert`). 이건 `developer.cleanbrain.me` 쪽에서 admin-gate된 무언가가 실제로 노출되거나 시도되기 전에 발견되어 스스로 고쳐진 것이다 — CORS 변경은 브라우저가 *도달할 수 있게* 만들었을 뿐 *권한을 부여하지는* 않았고, client를 위해 admin credential이 고려되기도 전에 같은 날 revert가 이루어졌다. 이 기능이 나중에 필요해진다면, 먼저 여기서 의도적인 product 결정이 필요하다: 예를 들어 attempt의 status/timestamp/retry-count는 반환하지만 `requestBody`/`responseBody`/`errorMessage`는 생략하는, 더 좁은 범위의 새 public endpoint — 기존의 admin-gate된 endpoint를 단순히 느슨하게 푸는 것이 아니라.
+- **같은 날, 그 의도적인 product 결정이 내려졌다: `/api/deliveries/*/attempts`와 `/api/delivery-attempts/**`를 public GET으로 다시 열었다**, 2026-09-17의 gate를 대체한다. maintainer의 명시적인 근거: 이 배포에 연결된 모든 Source/Target은 `relayhub-demo-systems` 아래에서 synthetic traffic만 생성하는 데모 시스템이며 앞으로도 그럴 것이다 — 실제 Target 연동은 계획되어 있지 않으므로, 원래의 gate가 보호하던 "real한 payload content"가 여기엔 애초에 존재하지 않는다. `SecurityConfig.java`의 `authorizeHttpRequests`는 더 이상 이 두 path pattern을 예외로 두지 않으며(다른 모든 public GET과 마찬가지로 기존의 포괄적인 `GET "/**".permitAll()` 규칙으로 흘러간다), CORS bean은 `/api/delivery-attempts/**`를 다시 얻었다(`/api/deliveries/*/attempts`는 이미 기존 `/api/deliveries/**` entry로 커버되어 있었다). `/api/events/**`는 의도적으로 계속 gate된 상태로 남겨뒀다 — Event ingress payload에 대해서는 "이건 영구적으로 synthetic하다"는 동등한 검토가 아직 이루어지지 않았다. 실제(데모가 아닌) Target이 연결되면 Attempt endpoint 결정을 다시 검토하라 — 코드 comment에 이를 명시적으로 적어둬서, 다음 세션이 git history에서 이 근거를 다시 발굴할 필요가 없도록 했다.
 
 ## In progress
 
