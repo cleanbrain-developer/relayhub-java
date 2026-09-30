@@ -21,12 +21,17 @@ export function AuthenticationFields({
   state,
   onChange,
   hasExistingSecret,
+  direction,
 }: {
   state: AuthFormState;
   onChange: (next: AuthFormState) => void;
   /** Whether this Source/Target already has authenticationType != NONE — purely informational, so
    *  the operator knows blank really does mean "unchanged" and not "none configured". */
   hasExistingSecret: boolean;
+  /** "inbound" (Source: RelayHub checks this header on every ingress request) vs "outbound"
+   *  (Target: RelayHub attaches this header on every delivery attempt) — same X-Api-Key header
+   *  convention (ApiKeyAuth.java), different direction, so the hint text says which. */
+  direction: "inbound" | "outbound";
 }) {
   return (
     <div className="form-grid">
@@ -54,6 +59,13 @@ export function AuthenticationFields({
           disabled={state.authenticationType === "NONE"}
         />
       </label>
+      {state.authenticationType === "API_KEY" && (
+        <p className="muted form-wide" style={{ margin: 0 }}>
+          {direction === "inbound"
+            ? <>RelayHub will require the <code>X-Api-Key</code> header on every ingress request to this Source, matching this value.</>
+            : <>RelayHub will attach the <code>X-Api-Key</code> header, set to this value, on every delivery attempt to this Target.</>}
+        </p>
+      )}
       {hasExistingSecret && (
         <p className="muted form-wide" style={{ margin: 0 }}>
           A secret is already configured and is never displayed once set. Leave this field blank to keep it; type a

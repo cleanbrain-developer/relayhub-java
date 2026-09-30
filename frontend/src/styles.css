@@ -1041,6 +1041,19 @@ code {
   margin: 0 0 0 0.4rem;
 }
 
+.mapping-warnings {
+  margin-bottom: 1rem;
+}
+
+.warning-note {
+  margin: 0 0 0.4rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+
 .readonly-field {
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--border);

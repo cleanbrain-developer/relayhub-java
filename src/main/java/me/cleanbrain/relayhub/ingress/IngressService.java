@@ -15,8 +15,11 @@ import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import me.cleanbrain.relayhub.common.ApiKeyAuth;
+import me.cleanbrain.relayhub.common.AuthenticationType;
 import me.cleanbrain.relayhub.common.HttpVerb;
 import me.cleanbrain.relayhub.common.NotFoundException;
+import me.cleanbrain.relayhub.source.Source;
 import me.cleanbrain.relayhub.event.Event;
 import me.cleanbrain.relayhub.event.EventRepository;
 import me.cleanbrain.relayhub.outbox.OutboxEvent;
@@ -80,6 +83,7 @@ public class IngressService {
     public IngressResult handle(String ingressPath, HttpMethod method, String rawBody, HttpServletRequest request) {
         SourceEvent sourceEvent = sourceEventRepository.findByIngressPathAndIngressMethod(ingressPath, HttpVerb.from(method))
                 .orElseThrow(() -> new NotFoundException("No Source Event registered for %s %s".formatted(method, ingressPath)));
+        authenticate(sourceEvent.getSource(), request);
 
         JsonNode payload = parsePayload(rawBody);
         validateSchema(sourceEvent, payload);
@@ -150,6 +154,26 @@ public class IngressService {
             liveActivityBroadcaster.broadcast(LiveEvent.ingress(sourceEvent.getSource().getKey(), sourceEvent.getKey()));
             return new IngressResult(event, queuedCount, false);
         });
+    }
+
+    /**
+     * A Source with {@code authenticationType=API_KEY} requires {@link ApiKeyAuth#HEADER_NAME} to
+     * exactly match its stored {@code authenticationConfig} on every ingress request (maintainer
+     * request 2026-09-30, "API_KEY 인증 실제 적용" — until now {@code authenticationConfig} was
+     * stored but never actually checked on the inbound side). {@code NONE} (the default, and every
+     * demo Source today) is unaffected — this only gates a Source an operator has explicitly opted
+     * into API-key protection for.
+     */
+    private void authenticate(Source source, HttpServletRequest request) {
+        if (source.getAuthenticationType() != AuthenticationType.API_KEY) {
+            return;
+        }
+        String provided = request.getHeader(ApiKeyAuth.HEADER_NAME);
+        String expected = source.getAuthenticationConfig();
+        if (expected == null || expected.isBlank() || !expected.equals(provided)) {
+            throw new IngressAuthenticationException(
+                    "Missing or invalid %s header for Source \"%s\"".formatted(ApiKeyAuth.HEADER_NAME, source.getKey()));
+        }
     }
 
     private JsonNode parsePayload(String rawBody) {

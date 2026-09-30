@@ -158,6 +158,7 @@ export function TargetDetailPage() {
                   state={form}
                   onChange={(next) => setForm({ ...form, ...next })}
                   hasExistingSecret={target.authenticationType !== "NONE"}
+                  direction="outbound"
                 />
                 {loggedIn && (
                   <button className="btn-primary" onClick={save} style={{ marginTop: "1rem" }}>

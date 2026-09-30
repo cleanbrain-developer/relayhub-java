@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.deliverysettings.DeliverySettingsService;
+import me.cleanbrain.relayhub.mapping.MappingValidationService;
 import me.cleanbrain.relayhub.sourceevent.SourceEvent;
 import me.cleanbrain.relayhub.sourceevent.SourceEventService;
 import me.cleanbrain.relayhub.subscription.dto.SubscriptionCreateRequest;
@@ -24,6 +25,7 @@ public class SubscriptionService {
     private final SourceEventService sourceEventService;
     private final TargetEndpointService targetEndpointService;
     private final DeliverySettingsService deliverySettingsService;
+    private final MappingValidationService mappingValidationService;
 
     @Transactional
     public Subscription create(SubscriptionCreateRequest request) {
@@ -67,6 +69,15 @@ public class SubscriptionService {
      *  into getById) so the controller can compute it once per response without a second lookup. */
     public int resolveEffectiveMaxAttempts(Subscription subscription) {
         return subscription.getMaxAttempts() != null ? subscription.getMaxAttempts() : deliverySettingsService.getMaxAttempts();
+    }
+
+    /** {@link me.cleanbrain.relayhub.subscription.dto.SubscriptionResponse}'s mappingWarnings —
+     *  see {@link MappingValidationService} for what's actually checked. Warning-only: never
+     *  blocks create/update, same as {@link #resolveEffectiveMaxAttempts} this mirrors the shape
+     *  of. */
+    public List<String> resolveMappingWarnings(Subscription subscription) {
+        return mappingValidationService.validate(
+                subscription.getSourceEvent(), subscription.getTargetEndpoint(), subscription.getTargetPayloadTemplate());
     }
 
     @Transactional

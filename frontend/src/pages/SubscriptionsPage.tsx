@@ -245,7 +245,14 @@ export function SubscriptionsPage() {
                 {s.sourceKey}/{s.sourceEventKey} &rarr; {s.targetKey}/{s.targetEndpointKey}
               </div>
             </div>
-            <StatusBadge value={s.status} />
+            <div className="entity-card-actions">
+              {s.mappingWarnings.length > 0 && (
+                <span className="badge badge-warn" title={s.mappingWarnings.join("\n")}>
+                  {s.mappingWarnings.length} mapping warning{s.mappingWarnings.length > 1 ? "s" : ""}
+                </span>
+              )}
+              <StatusBadge value={s.status} />
+            </div>
           </Link>
         ))}
         {loading && <p className="muted">Loading Subscriptions...</p>}

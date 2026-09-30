@@ -144,6 +144,7 @@ export function SourceDetailPage() {
                   state={form}
                   onChange={(next) => setForm({ ...form, ...next })}
                   hasExistingSecret={source.authenticationType !== "NONE"}
+                  direction="inbound"
                 />
                 {loggedIn && (
                   <button className="btn-primary" onClick={save} style={{ marginTop: "1rem" }}>

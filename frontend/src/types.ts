@@ -106,6 +106,9 @@ export interface Subscription {
   jitter: boolean | null;
   timeoutMs: number | null;
   status: Status;
+  /** Field-registry validation warnings (informational only, never blocks save) — see
+   *  MappingValidationService.java. Empty when there's nothing to warn about. */
+  mappingWarnings: string[];
 }
 
 export interface Delivery {

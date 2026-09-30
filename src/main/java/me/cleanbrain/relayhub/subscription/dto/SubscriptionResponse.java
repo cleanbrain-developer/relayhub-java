@@ -4,6 +4,7 @@ import me.cleanbrain.relayhub.common.HttpVerb;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.subscription.Subscription;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -34,9 +35,13 @@ public record SubscriptionResponse(
         Double backoffMultiplier,
         Boolean jitter,
         Integer timeoutMs,
-        Status status
+        Status status,
+        /** Field-registry warnings (maintainer request 2026-09-30) — informational only, never
+         *  blocks create/update. See MappingValidationService. Empty, not null, when there's
+         *  nothing to warn about. */
+        List<String> mappingWarnings
 ) {
-    public static SubscriptionResponse from(Subscription subscription, int effectiveMaxAttempts) {
+    public static SubscriptionResponse from(Subscription subscription, int effectiveMaxAttempts, List<String> mappingWarnings) {
         return new SubscriptionResponse(
                 subscription.getId(),
                 subscription.getSourceEvent().getSource().getKey(),
@@ -56,7 +61,8 @@ public record SubscriptionResponse(
                 subscription.getBackoffMultiplier(),
                 subscription.getJitter(),
                 subscription.getTimeoutMs(),
-                subscription.getStatus()
+                subscription.getStatus(),
+                mappingWarnings
         );
     }
 }

@@ -245,9 +245,18 @@ export function SubscriptionDetailPage() {
           },
           {
             id: "mapping",
-            label: "Mapping",
+            label: subscription.mappingWarnings.length > 0 ? `Mapping (${subscription.mappingWarnings.length})` : "Mapping",
             content: (
               <div className="card">
+                {subscription.mappingWarnings.length > 0 && (
+                  <div className="mapping-warnings">
+                    {subscription.mappingWarnings.map((w, i) => (
+                      <p key={i} className="warning-note">
+                        {w}
+                      </p>
+                    ))}
+                  </div>
+                )}
                 <MappingBuilder
                   value={form.targetPayloadTemplate}
                   onChange={(t) => setForm({ ...form, targetPayloadTemplate: t })}

@@ -41,7 +41,9 @@ public class SubscriptionController {
     }
 
     private SubscriptionResponse toResponse(Subscription subscription) {
-        return SubscriptionResponse.from(subscription, subscriptionService.resolveEffectiveMaxAttempts(subscription));
+        return SubscriptionResponse.from(subscription,
+                subscriptionService.resolveEffectiveMaxAttempts(subscription),
+                subscriptionService.resolveMappingWarnings(subscription));
     }
 
     /** ?hard=true permanently deletes the row instead of the default soft delete (deactivate). */

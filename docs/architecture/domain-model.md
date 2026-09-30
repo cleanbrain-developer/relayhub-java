@@ -247,16 +247,25 @@ Backoff is exponential (`initialBackoffMs * backoffMultiplier^(attemptNumber-1)`
   explicitly, not just this document.
 - **`HMAC`/`OAUTH2`/`BEARER_TOKEN`/`BASIC` authentication types are declared but inert** — no
   signing, token-fetch flow, or credential injection exists for any of them (the console does not
-  offer them as selectable, precisely so nothing looks functional without being so). Only `NONE`/
-  `API_KEY` behave as their name implies today, and `API_KEY` itself is only ever stored, never
-  actually attached to an outbound request — Source/Target authentication has never been
-  functionally wired into the delivery path beyond storing a string.
+  offer them as selectable, precisely so nothing looks functional without being so). ~~Only
+  `NONE`/`API_KEY` behave as their name implies today, and `API_KEY` itself is only ever stored,
+  never actually attached to an outbound request~~ — resolved 2026-09-30 (follow-up, same day):
+  `API_KEY` is now functionally wired both directions via a shared `X-Api-Key` header convention
+  (`common/ApiKeyAuth.java`) — a Source with `authenticationType=API_KEY` now rejects (`401`) an
+  ingress request missing or mismatching that header (`IngressService.authenticate`), and a Target
+  with `authenticationType=API_KEY` now gets that header attached on every outbound delivery
+  attempt (`DeliveryService.applyApiKeyHeader`). `NONE` (every existing demo Source/Target) is
+  unaffected. See `ApiKeyAuthenticationTest`.
 - **`timeoutMs` is the only DeliveryPolicy field with per-request effect beyond backoff timing** —
   there is no circuit breaker, and `TargetEndpoint.timeoutOverrideMs` is declared but not read by
   `DeliveryService` (the Subscription-level `timeoutMs` override is what's actually applied).
-- **A Target field registered under one `TargetEndpoint` is not validated against what
-  `targetPayloadTemplate` actually references** — the registry is a mapping/autocomplete aid, not a
-  hard constraint (same deliberate scope decision as Spec 006 made for the original flat model).
+- ~~A Target field registered under one `TargetEndpoint` is not validated against what
+  `targetPayloadTemplate` actually references~~ — resolved 2026-09-30 (follow-up, same day):
+  `SubscriptionResponse.mappingWarnings` now lists any target field or source JSONPath the template
+  references that isn't registered (`MappingValidationService`), recomputed fresh on every read.
+  Deliberately still not a hard constraint — Spec 006's original reasoning for that stands (see
+  `MappingValidationService`'s own Javadoc), only warnings, never a blocked save. See
+  `MappingFieldRegistryValidationTest`.
 - **Secret handling is "never echo back," not full secret-manager integration** —
   `authenticationConfig` is a plain column, masked only by never being returned in an API response.
   Stage 3 fixed a real bug here: `SourceService.update`/`TargetService.update` used to overwrite the

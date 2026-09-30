@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
+import me.cleanbrain.relayhub.common.ApiKeyAuth;
+import me.cleanbrain.relayhub.common.AuthenticationType;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.deliverysettings.DeliverySettingsService;
 import me.cleanbrain.relayhub.event.Event;
@@ -14,6 +16,7 @@ import me.cleanbrain.relayhub.live.LiveEvent;
 import me.cleanbrain.relayhub.mapping.MappingService;
 import me.cleanbrain.relayhub.subscription.Subscription;
 import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
+import me.cleanbrain.relayhub.target.Target;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -260,9 +263,13 @@ public class DeliveryService {
         boolean success;
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String responseBody = buildRestClient(timeoutMs).method(subscription.getTargetEndpoint().getHttpMethod().toSpring())
+            RestClient.RequestBodySpec requestSpec = buildRestClient(timeoutMs)
+                    .method(subscription.getTargetEndpoint().getHttpMethod().toSpring())
                     .uri(url)
-                    .contentType(MediaType.APPLICATION_JSON)
+                    .contentType(MediaType.APPLICATION_JSON);
+            requestSpec = applyApiKeyHeader(requestSpec, subscription.getTargetEndpoint().getTarget());
+
+            String responseBody = requestSpec
                     .body(targetPayload)
                     .retrieve()
                     .body(String.class);
@@ -308,6 +315,23 @@ public class DeliveryService {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(sharedHttpClient);
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
         return RestClient.builder().requestFactory(factory).build();
+    }
+
+    /**
+     * A Target with {@code authenticationType=API_KEY} gets {@link ApiKeyAuth#HEADER_NAME}
+     * attached on every outbound delivery attempt (maintainer request 2026-09-30, "API_KEY 인증
+     * 실제 적용" — until now {@code authenticationConfig} was stored but never actually attached to
+     * an outbound request). {@code NONE} (the default, and every demo Target today) is unaffected.
+     */
+    private RestClient.RequestBodySpec applyApiKeyHeader(RestClient.RequestBodySpec requestSpec, Target target) {
+        if (target.getAuthenticationType() != AuthenticationType.API_KEY) {
+            return requestSpec;
+        }
+        String apiKey = target.getAuthenticationConfig();
+        if (apiKey == null || apiKey.isBlank()) {
+            return requestSpec;
+        }
+        return requestSpec.header(ApiKeyAuth.HEADER_NAME, apiKey);
     }
 
     private record EffectiveDeliveryPolicy(

@@ -1,6 +1,7 @@
 package me.cleanbrain.relayhub.common;
 
 import jakarta.servlet.http.HttpServletRequest;
+import me.cleanbrain.relayhub.ingress.IngressAuthenticationException;
 import me.cleanbrain.relayhub.ingress.SchemaValidationException;
 import me.cleanbrain.relayhub.mapping.MappingException;
 import org.springframework.http.HttpStatus;
@@ -16,6 +17,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest request) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(IngressAuthenticationException.class)
+    public ResponseEntity<ApiError> handleIngressAuthentication(IngressAuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
     @ExceptionHandler(SchemaValidationException.class)
