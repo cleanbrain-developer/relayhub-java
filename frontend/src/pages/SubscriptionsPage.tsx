@@ -240,20 +240,20 @@ export function SubscriptionsPage() {
         {visible.map((s) => (
           <Link className="entity-row" to={`/subscriptions/${s.id}`} key={s.id}>
             <div className="entity-row-main">
-              <strong>{s.name}</strong>
-              <div className="subscription-flow">
+              <div className="subscription-flow subscription-flow-primary">
                 <span className="flow-group">
-                  <code>{s.sourceKey}</code>
+                  <strong>{s.sourceKey}</strong>
                   <span className="flow-chevron">&rsaquo;</span>
                   <code>{s.sourceEventKey}</code>
                 </span>
                 <span className="flow-arrow">&rarr;</span>
                 <span className="flow-group">
-                  <code>{s.targetKey}</code>
+                  <strong>{s.targetKey}</strong>
                   <span className="flow-chevron">&rsaquo;</span>
                   <code>{s.targetEndpointKey}</code>
                 </span>
               </div>
+              <div className="entity-row-sub">{s.name}</div>
             </div>
             <div className="entity-card-actions">
               {s.mappingWarnings.length > 0 && (
