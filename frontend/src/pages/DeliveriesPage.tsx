@@ -8,7 +8,7 @@ import { AttemptDetail } from "../components/AttemptDetail";
 import { EventDetail } from "../components/EventDetail";
 import { useToast } from "../toast";
 
-const STATES: (DeliveryState | "ALL")[] = ["ALL", "PENDING", "SUCCEEDED", "DEAD"];
+const STATES: (DeliveryState | "ALL")[] = ["ALL", "PENDING", "PROCESSING", "RETRYING", "SUCCEEDED", "DEAD", "REPLAYING"];
 
 export function DeliveriesPage() {
   const [params] = useSearchParams();
@@ -219,6 +219,7 @@ export function DeliveriesPage() {
             <th>State</th>
             <th>Target</th>
             <th>Attempts</th>
+            <th>Next attempt</th>
             <th>Updated</th>
             <th></th>
           </tr>
@@ -236,6 +237,7 @@ export function DeliveriesPage() {
                     <code>{targetKey}</code>
                   </td>
                   <td>{d.attemptCount}</td>
+                  <td>{d.state === "RETRYING" && d.nextAttemptAt ? new Date(d.nextAttemptAt).toLocaleString() : "-"}</td>
                   <td>{new Date(d.updatedAt).toLocaleString()}</td>
                   <td>
                     <button onClick={() => toggle(d.id)}>{expandedId === d.id ? "Hide" : "Attempts"}</button>
@@ -247,7 +249,7 @@ export function DeliveriesPage() {
                 </tr>
                 {eventOpenId === d.id && loggedIn && (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       {eventError && <p className="error">{eventError}</p>}
                       {!eventError && !event && <p className="muted">Loading event...</p>}
                       {event && <EventDetail event={event} />}
@@ -256,7 +258,7 @@ export function DeliveriesPage() {
                 )}
                 {expandedId === d.id && (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <p className="muted" style={{ marginTop: 0 }}>
                         RelayHub's own {attempts.length || d.attemptCount} attempt(s) to deliver this event to Target{" "}
                         <code>{targetKey}</code> — every row below is a retry against that <em>same</em> Target, not a

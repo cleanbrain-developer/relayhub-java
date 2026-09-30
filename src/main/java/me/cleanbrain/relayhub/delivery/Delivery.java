@@ -49,6 +49,10 @@ public class Delivery {
     @Column(nullable = false)
     private int attemptCount;
 
+    /** Set while {@code state == RETRYING}; when this is reached, DeliveryRetryScheduler picks the
+     *  delivery back up. Null in every other state. */
+    private Instant nextAttemptAt;
+
     @CreationTimestamp
     private Instant createdAt;
 

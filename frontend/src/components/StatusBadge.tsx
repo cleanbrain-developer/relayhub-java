@@ -5,6 +5,9 @@ export function StatusBadge({ value }: { value: string }) {
     SUCCESS: "badge badge-ok",
     INACTIVE: "badge badge-muted",
     PENDING: "badge badge-warn",
+    PROCESSING: "badge badge-warn",
+    RETRYING: "badge badge-warn",
+    REPLAYING: "badge badge-warn",
     DEAD: "badge badge-danger",
     FAILED: "badge badge-danger",
   };

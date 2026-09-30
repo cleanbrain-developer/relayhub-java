@@ -27,7 +27,17 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
      *  perpetually-broken Target can't starve the rest of the DLQ backlog of ever being retried. */
     List<Delivery> findTop10ByStateOrderByUpdatedAtAsc(DeliveryState state);
 
+    /** Due-first, bounded batch for DeliveryRetryScheduler — deliveries whose backoff has elapsed
+     *  (state RETRYING, nextAttemptAt <= now). Soonest-due first, same "don't starve the rest of
+     *  the batch" reasoning as findTop10ByStateOrderByUpdatedAtAsc. */
+    List<Delivery> findTop20ByStateAndNextAttemptAtLessThanEqualOrderByNextAttemptAtAsc(DeliveryState state, Instant now);
+
     long countByState(DeliveryState state);
+
+    /** Used by DeliveryController's summary endpoint to report one "in flight" bucket across every
+     *  non-terminal state (PENDING/PROCESSING/RETRYING/REPLAYING) instead of just PENDING, which
+     *  Stage 2's async retry loop now passes through almost instantly. */
+    long countByStateIn(java.util.Collection<DeliveryState> states);
 
     /**
      * Bulk delete — see EventRepository.deleteByReceivedAtBefore for why not a derived delete,

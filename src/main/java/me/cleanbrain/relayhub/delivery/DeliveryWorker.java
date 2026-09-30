@@ -16,10 +16,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Consumes {@link DeliveryTaskMessage}s published by {@link OutboxPublisher} and calls the
- * existing {@link DeliveryService#deliver(Event, Subscription, JsonNode)} — Spec 002's
- * retry/backoff/DLQ logic runs unchanged, just off a Kafka consumer thread instead of the
- * ingress request thread. See specs/003-kafka-outbox/spec.md.
+ * Consumes {@link DeliveryTaskMessage}s published by {@link OutboxPublisher} and calls
+ * {@link DeliveryService#deliver(Event, Subscription, JsonNode)}, which performs the first attempt
+ * synchronously here and, on failure, hands any further retries off to
+ * {@link DeliveryRetryScheduler} rather than blocking this consumer thread through the whole
+ * backoff schedule (see DeliveryService's own Javadoc — Stage 2 of the integration-platform
+ * overhaul, maintainer request 2026-09-30). See specs/003-kafka-outbox/spec.md.
  */
 @Component
 @RequiredArgsConstructor

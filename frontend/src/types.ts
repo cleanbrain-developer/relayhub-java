@@ -1,7 +1,7 @@
 export type Status = "ACTIVE" | "INACTIVE";
 export type HttpVerb = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type Operation = "CREATED" | "REPLACED" | "PATCHED" | "DELETED";
-export type DeliveryState = "PENDING" | "SUCCEEDED" | "DEAD";
+export type DeliveryState = "PENDING" | "PROCESSING" | "SUCCEEDED" | "RETRYING" | "DEAD" | "REPLAYING";
 export type DeliveryStatus = "SUCCESS" | "FAILED";
 export type FieldDataType = "STRING" | "NUMBER" | "BOOLEAN" | "OBJECT" | "ARRAY" | "DATE";
 /** Only NONE/API_KEY are functionally wired today — the rest are declared server-side for a later
@@ -115,6 +115,7 @@ export interface Delivery {
   targetId: string;
   state: DeliveryState;
   attemptCount: number;
+  nextAttemptAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

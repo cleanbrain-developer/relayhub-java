@@ -13,6 +13,9 @@ public record DeliveryResponse(
         UUID targetId,
         DeliveryState state,
         int attemptCount,
+        /** Set only while {@code state == RETRYING} — when DeliveryRetryScheduler will next
+         *  attempt this delivery. Null otherwise. */
+        Instant nextAttemptAt,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -24,6 +27,7 @@ public record DeliveryResponse(
                 delivery.getTargetId(),
                 delivery.getState(),
                 delivery.getAttemptCount(),
+                delivery.getNextAttemptAt(),
                 delivery.getCreatedAt(),
                 delivery.getUpdatedAt()
         );

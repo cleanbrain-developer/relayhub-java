@@ -40,7 +40,8 @@ public class DeliveryController {
     @GetMapping("/summary")
     public DeliverySummaryResponse summary() {
         return new DeliverySummaryResponse(
-                deliveryRepository.countByState(DeliveryState.PENDING),
+                deliveryRepository.countByStateIn(java.util.List.of(
+                        DeliveryState.PENDING, DeliveryState.PROCESSING, DeliveryState.RETRYING, DeliveryState.REPLAYING)),
                 deliveryRepository.countByState(DeliveryState.SUCCEEDED),
                 deliveryRepository.countByState(DeliveryState.DEAD));
     }
