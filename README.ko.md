@@ -8,7 +8,7 @@ Event-driven data integration platform입니다. RelayHub는 Source system으로
 
 ## Status
 
-원래의 design roadmap은 모두 구현되었습니다: vertical slice, Reliability phase(Kafka + Transactional Outbox를 통해 제공되는 Retry/Backoff/DLQ/Replay/Idempotency — `docs/decisions/ADR-0003-incremental-reliability-phase.md` 참고), Flyway migration과 delivery-task idempotency(`docs/decisions/ADR-0004-flyway-and-delivery-dedup.md`), CI, observability(metrics, dashboard, tracing — `specs/004-observability/`). 정확히 무엇이 존재하고, 어떤 known gap이 남아 있으며, 다음에 무엇을 할지는 [`docs/status/current-state.md`](docs/status/current-state.md)를 참고하세요.
+원래의 design roadmap은 모두 구현되었습니다: vertical slice, Reliability phase(Kafka + Transactional Outbox를 통해 제공되는 Retry/Backoff/DLQ/Replay/Idempotency — `docs/decisions/ADR-0003-incremental-reliability-phase.md` 참고), Flyway migration과 delivery-task idempotency(`docs/decisions/ADR-0004-flyway-and-delivery-dedup.md`), CI, observability(metrics, dashboard, tracing — `specs/004-observability/`). 이후 integration-platform domain-model overhaul(2026-09-30)이 원래의 flat model에서 `Target`의 endpoint별 contract를 분리하고, 차단형 재시도 루프를 비차단 스케줄 방식으로 교체하고, 관리 콘솔을 List → Detail IA로 재구성했습니다 — 현재 entity model은 [`docs/architecture/domain-model.ko.md`](docs/architecture/domain-model.ko.md), 정확히 무엇이 존재하고 어떤 known gap이 남아 있으며 다음에 무엇을 할지는 [`docs/status/current-state.md`](docs/status/current-state.md)를 참고하세요.
 
 ## Documentation map
 
@@ -17,6 +17,7 @@ Event-driven data integration platform입니다. RelayHub는 Source system으로
 | Project identity | [`PROJECT.yaml`](PROJECT.yaml) |
 | Product: problem, users, goals, scope | [`docs/product/`](docs/product/) |
 | Architecture: structure, system design | [`docs/architecture/`](docs/architecture/) |
+| Architecture: 현재 domain model (entity, delivery flow, Delivery/DLQ/Replay 상태) | [`docs/architecture/domain-model.ko.md`](docs/architecture/domain-model.ko.md) |
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
 | Durable engineering principles | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |

@@ -2,6 +2,8 @@
 
 This document describes RelayHub's own system boundaries, domain modules, data flow, and delivery pipeline. Sourced directly from the accepted RelayHub design context (2026-09-10, see `docs/decisions/ADR-0002-java-spring-boot-stack.md` for the stack decision this design assumes).
 
+> **The "Registration model" table below is the original MVP-era shape and is now out of date** for `Subscription`/`Target` — the integration-platform domain-model overhaul (2026-09-30) introduced `TargetEndpoint`, `AuthenticationType`, and per-Subscription delivery-policy overrides. See [`domain-model.md`](domain-model.md) for the current entity model, Mermaid diagrams, and the Delivery/DLQ/Replay state machine. The rest of this document (data flow, mapping strategy, module boundaries, stack) remains accurate.
+
 ## Core data flow
 
 ```text

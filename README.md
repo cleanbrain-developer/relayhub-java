@@ -6,7 +6,7 @@ This is the Java 21 / Spring Boot implementation. Other-language implementations
 
 ## Status
 
-The original design roadmap is fully built: the vertical slice, the Reliability phase (Retry/Backoff/DLQ/Replay/Idempotency delivered via Kafka + Transactional Outbox — see `docs/decisions/ADR-0003-incremental-reliability-phase.md`), Flyway migrations and delivery-task idempotency (`docs/decisions/ADR-0004-flyway-and-delivery-dedup.md`), CI, and observability (metrics, dashboards, tracing — `specs/004-observability/`). See [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists, what's still a known gap, and what's next.
+The original design roadmap is fully built: the vertical slice, the Reliability phase (Retry/Backoff/DLQ/Replay/Idempotency delivered via Kafka + Transactional Outbox — see `docs/decisions/ADR-0003-incremental-reliability-phase.md`), Flyway migrations and delivery-task idempotency (`docs/decisions/ADR-0004-flyway-and-delivery-dedup.md`), CI, and observability (metrics, dashboards, tracing — `specs/004-observability/`). An integration-platform domain-model overhaul (2026-09-30) then split `Target` per-endpoint contracts out of the flat original model, replaced the blocking retry loop with a non-blocking scheduled one, and reworked the admin console into a List → Detail IA — see [`docs/architecture/domain-model.md`](docs/architecture/domain-model.md) for the current entity model and [`docs/status/current-state.md`](docs/status/current-state.md) for exactly what exists, what's still a known gap, and what's next.
 
 ## Documentation map
 
@@ -15,6 +15,7 @@ The original design roadmap is fully built: the vertical slice, the Reliability 
 | Project identity | [`PROJECT.yaml`](PROJECT.yaml) |
 | Product: problem, users, goals, scope | [`docs/product/`](docs/product/) |
 | Architecture: structure, system design | [`docs/architecture/`](docs/architecture/) |
+| Architecture: current domain model (entities, delivery flow, Delivery/DLQ/Replay states) | [`docs/architecture/domain-model.md`](docs/architecture/domain-model.md) |
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
 | Durable engineering principles | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |

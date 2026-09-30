@@ -4,6 +4,8 @@
 
 이 문서는 RelayHub 고유의 system boundary, domain module, data flow, delivery pipeline을 설명합니다. accepted RelayHub design context(2026-09-10)에서 직접 가져왔습니다(이 design이 전제하는 stack decision은 `docs/decisions/ADR-0002-java-spring-boot-stack.md` 참고).
 
+> **아래 "Registration model" 표는 원래 MVP 시절 구조이며 `Subscription`/`Target` 부분은 현재 최신이 아닙니다** — integration-platform domain-model overhaul(2026-09-30)에서 `TargetEndpoint`, `AuthenticationType`, Subscription별 delivery-policy override가 도입됐습니다. 현재 entity model, Mermaid 다이어그램, Delivery/DLQ/Replay state machine은 [`domain-model.ko.md`](domain-model.ko.md) 참고. 이 문서의 나머지 부분(data flow, mapping strategy, module boundary, stack)은 여전히 정확합니다.
+
 ## Core data flow
 
 ```text
