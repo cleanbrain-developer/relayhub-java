@@ -1,8 +1,8 @@
 name: CI
 
-# test runs on every push/PR to master. build-and-push and deploy are the CI/CD bridge to the
+# test runs on every push/PR to main. build-and-push and deploy are the CI/CD bridge to the
 # single Hetzner K3s server (same interim-before-ArgoCD model as english-core-speaking/
-# cleanbrain-me-entrance) and only run on an actual push to master — never for a PR, and
+# cleanbrain-me-entrance) and only run on an actual push to main — never for a PR, and
 # `deploy` additionally gates on ENABLE_PRODUCTION_DEPLOY so a push before the cluster
 # administrator has bootstrapped the api Deployment (see cleanbrain-me-infra's README
 # "relayhub-java") doesn't hard-fail on `kubectl set image` against a Deployment that doesn't
@@ -11,9 +11,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
   workflow_dispatch: {}
 
 concurrency:
@@ -69,7 +69,7 @@ jobs:
 
   build-and-push:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -100,7 +100,7 @@ jobs:
     needs: build-and-push
     # See cleanbrain-me-infra's README "relayhub-java" for how/when the cluster administrator
     # flips this repository variable on, same convention as english-core-speaking/entrance.
-    if: github.ref == 'refs/heads/master' && vars.ENABLE_PRODUCTION_DEPLOY == 'true'
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_PRODUCTION_DEPLOY == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
