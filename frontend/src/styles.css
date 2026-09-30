@@ -933,6 +933,123 @@ code {
   flex: 1;
 }
 
+/* Stage 3: List -> Detail navigation (Sources/Targets/Subscriptions). */
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.entity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s;
+}
+
+.entity-row:hover {
+  border-color: var(--accent);
+}
+
+.entity-row-main strong {
+  font-size: 0.92rem;
+}
+
+.entity-row-sub {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tab-strip {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  margin: 0;
+  padding: 0.6rem 0.2rem;
+  margin-right: 1.25rem;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  background: none;
+  color: var(--text);
+}
+
+.tab-active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.copy-button {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  margin: 0 0 0 0.4rem;
+}
+
+.readonly-field {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
 @media (max-width: 640px) {
   .form-grid {
     grid-template-columns: 1fr;

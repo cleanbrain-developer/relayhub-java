@@ -1,13 +1,18 @@
 import { FormEvent, useEffect, useState } from "react";
-import { del, get, post, put } from "../api";
+import { Link } from "react-router-dom";
+import { get, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Source } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
-import { SourceEventFields } from "../components/SourceEventFields";
 import { useToast } from "../toast";
 
-const emptyForm = { key: "", name: "", description: "", authenticationConfig: "" };
+const emptyForm = { key: "", name: "", description: "", authenticationType: "NONE" as const, authenticationConfig: "" };
 
+/**
+ * List of Sources — browsing and creation only. Editing, Source Events, Authentication, and the
+ * dangerous actions (deactivate/hard-delete) all live on SourceDetailPage now (Stage 3, maintainer
+ * request 2026-09-30: List -> Detail navigation replacing the old always-expanded-inline pattern).
+ */
 export function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,9 +20,6 @@ export function SourcesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", description: "", authenticationConfig: "" });
-  const [fieldsOpenKey, setFieldsOpenKey] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
 
@@ -45,50 +47,7 @@ export function SourcesPage() {
     }
   }
 
-  function startEdit(source: Source) {
-    setEditingKey(editingKey === source.key ? null : source.key);
-    setEditForm({ name: source.name, description: source.description, authenticationConfig: "" });
-  }
-
-  async function saveEdit(key: string) {
-    setError(null);
-    try {
-      await put(`/api/sources/${key}`, editForm);
-      setEditingKey(null);
-      reload();
-      notify(`Source "${key}" updated.`);
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
-
-  async function deactivate(key: string) {
-    if (!confirm(`Deactivate Source "${key}"? Existing Deliveries/history are kept.`)) return;
-    setError(null);
-    try {
-      await del(`/api/sources/${key}`);
-      reload();
-      notify(`Source "${key}" deactivated.`);
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
-
-  async function hardDelete(key: string) {
-    if (!confirm(`Permanently delete Source "${key}"? This cannot be undone. Blocked if any Source Event still exists for it.`))
-      return;
-    setError(null);
-    try {
-      await del(`/api/sources/${key}?hard=true`);
-      reload();
-      notify(`Source "${key}" permanently deleted.`);
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
+  const visible = sources.filter((s) => showInactive || s.status === "ACTIVE");
 
   return (
     <div>
@@ -126,14 +85,10 @@ export function SourcesPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </label>
-            <label>
-              Authentication config (optional)
-              <input
-                value={form.authenticationConfig}
-                onChange={(e) => setForm({ ...form, authenticationConfig: e.target.value })}
-              />
-            </label>
           </div>
+          <p className="muted" style={{ margin: 0 }}>
+            Authentication can be configured after creation, from the Source's own page.
+          </p>
           <button type="submit" className="btn-primary">
             Create Source
           </button>
@@ -141,66 +96,19 @@ export function SourcesPage() {
       )}
 
       <div className="card-list">
-        {sources
-          .filter((s) => showInactive || s.status === "ACTIVE")
-          .map((s) => (
-          <div className="card entity-card" key={s.key}>
-            <div className="entity-card-header">
-              <div>
-                <strong>{s.name}</strong>
-                <div className="muted">
-                  <code>{s.key}</code> &middot; {s.description}
-                </div>
-              </div>
-              <div className="entity-card-actions">
-                <StatusBadge value={s.status} />
-                <button onClick={() => setFieldsOpenKey(fieldsOpenKey === s.key ? null : s.key)}>
-                  {fieldsOpenKey === s.key ? "Hide field mapping" : "Field mapping"}
-                </button>
-                {loggedIn && (
-                  <>
-                    <button onClick={() => startEdit(s)}>{editingKey === s.key ? "Close" : "Edit"}</button>
-                    {s.status === "ACTIVE" && <button onClick={() => deactivate(s.key)}>Deactivate</button>}
-                    <button className="btn-danger" onClick={() => hardDelete(s.key)}>
-                      Delete permanently
-                    </button>
-                  </>
-                )}
+        {visible.map((s) => (
+          <Link className="entity-row" to={`/sources/${s.key}`} key={s.key}>
+            <div className="entity-row-main">
+              <strong>{s.name}</strong>
+              <div className="entity-row-sub">
+                <code>{s.key}</code> &middot; {s.description}
               </div>
             </div>
-            {fieldsOpenKey === s.key && (
-              <div className="entity-card-edit">
-                <p className="muted">
-                  Fields each Source Event can supply — registered here so Subscriptions can map them via dropdown
-                  instead of free-typed JSONPath.
-                </p>
-                <SourceEventFields sourceKey={s.key} loggedIn={loggedIn} />
-              </div>
-            )}
-            {editingKey === s.key && (
-              <div className="entity-card-edit">
-                <div className="form-grid">
-                  <label>
-                    Name
-                    <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                  </label>
-                  <label className="form-wide">
-                    Description
-                    <input
-                      value={editForm.description}
-                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <button className="btn-primary" onClick={() => saveEdit(s.key)}>
-                  Save
-                </button>
-              </div>
-            )}
-          </div>
+            <StatusBadge value={s.status} />
+          </Link>
         ))}
         {loading && <p className="muted">Loading Sources...</p>}
-        {!loading && sources.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
+        {!loading && visible.length === 0 && (
           <p className="muted">{sources.length === 0 ? "No Sources yet." : "No active Sources — try “Show deactivated”."}</p>
         )}
       </div>

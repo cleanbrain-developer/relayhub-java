@@ -3,10 +3,14 @@ import { del, get, post, put } from "../api";
 import { HttpVerb, TargetEndpoint } from "../types";
 import { StatusBadge } from "./StatusBadge";
 import { FieldRegistryEditor } from "./FieldRegistryEditor";
+import { CopyButton } from "./CopyButton";
 import { useToast } from "../toast";
 
 interface Props {
   targetKey: string;
+  /** For the full-URL copy affordance next to each endpoint (Stage 3) — the Target's own baseUrl,
+   *  which this component doesn't otherwise fetch itself. */
+  baseUrl: string;
   loggedIn: boolean;
 }
 
@@ -52,7 +56,7 @@ function toFormState(ep: TargetEndpoint): EndpointFormState {
  * maintainer request 2026-09-30 — TargetField moved from Target-scoped to TargetEndpoint-scoped
  * since the same Target can expose endpoints with different request shapes).
  */
-export function TargetEndpoints({ targetKey, loggedIn }: Props) {
+export function TargetEndpoints({ targetKey, baseUrl, loggedIn }: Props) {
   const [endpoints, setEndpoints] = useState<TargetEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -251,6 +255,7 @@ export function TargetEndpoints({ targetKey, loggedIn }: Props) {
                 {" "}
                 &middot; {ep.name} &middot; {ep.httpMethod} <code>{ep.path}</code>
               </span>
+              <CopyButton value={`${baseUrl}${ep.path}`} />
             </div>
             <div className="entity-card-actions">
               <StatusBadge value={ep.status} />

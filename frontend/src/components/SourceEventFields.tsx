@@ -3,6 +3,7 @@ import { del, get, post, put } from "../api";
 import { Operation, SourceEvent } from "../types";
 import { StatusBadge } from "./StatusBadge";
 import { FieldRegistryEditor } from "./FieldRegistryEditor";
+import { CopyButton } from "./CopyButton";
 import { useToast } from "../toast";
 
 interface Props {
@@ -294,6 +295,7 @@ export function SourceEventFields({ sourceKey, loggedIn }: Props) {
                 {" "}
                 &middot; {ev.name} &middot; {ev.operation} ({ev.ingressMethod} <code>{ev.ingressPath}</code>)
               </span>
+              <CopyButton value={`${window.location.origin}${ev.ingressPath}`} />
             </div>
             <div className="entity-card-actions">
               <StatusBadge value={ev.status} />

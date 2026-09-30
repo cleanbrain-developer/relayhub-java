@@ -59,7 +59,10 @@ public class TargetService {
         target.setDescription(request.description());
         target.setBaseUrl(request.baseUrl());
         target.setAuthenticationType(request.authenticationType() != null ? request.authenticationType() : AuthenticationType.NONE);
-        target.setAuthenticationConfig(request.authenticationConfig());
+        // Same "blank means leave it alone" reasoning as SourceService.update — see its comment.
+        if (request.authenticationConfig() != null && !request.authenticationConfig().isBlank()) {
+            target.setAuthenticationConfig(request.authenticationConfig());
+        }
         return target;
     }
 

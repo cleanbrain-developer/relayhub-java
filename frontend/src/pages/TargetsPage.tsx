@@ -1,13 +1,24 @@
 import { FormEvent, useEffect, useState } from "react";
-import { del, get, post, put } from "../api";
+import { Link } from "react-router-dom";
+import { get, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
-import { TargetEndpoints } from "../components/TargetEndpoints";
 import { useToast } from "../toast";
 
-const emptyForm = { key: "", name: "", description: "", baseUrl: "", authenticationConfig: "" };
+const emptyForm = {
+  key: "",
+  name: "",
+  description: "",
+  baseUrl: "",
+  authenticationType: "NONE" as const,
+  authenticationConfig: "",
+};
 
+/**
+ * List of Targets — browsing and creation only. Editing, Endpoints, Authentication, and the
+ * dangerous actions all live on TargetDetailPage now (Stage 3, maintainer request 2026-09-30).
+ */
 export function TargetsPage() {
   const [targets, setTargets] = useState<Target[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,9 +26,6 @@ export function TargetsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", description: "", baseUrl: "", authenticationConfig: "" });
-  const [fieldsOpenKey, setFieldsOpenKey] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
 
@@ -45,50 +53,7 @@ export function TargetsPage() {
     }
   }
 
-  function startEdit(target: Target) {
-    setEditingKey(editingKey === target.key ? null : target.key);
-    setEditForm({ name: target.name, description: target.description, baseUrl: target.baseUrl, authenticationConfig: "" });
-  }
-
-  async function saveEdit(key: string) {
-    setError(null);
-    try {
-      await put(`/api/targets/${key}`, editForm);
-      setEditingKey(null);
-      reload();
-      notify(`Target "${key}" updated.`);
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
-
-  async function deactivate(key: string) {
-    if (!confirm(`Deactivate Target "${key}"? Existing Deliveries/history are kept.`)) return;
-    setError(null);
-    try {
-      await del(`/api/targets/${key}`);
-      reload();
-      notify(`Target "${key}" deactivated.`);
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
-
-  async function hardDelete(key: string) {
-    if (!confirm(`Permanently delete Target "${key}"? This cannot be undone. Blocked if any Subscription still uses it.`))
-      return;
-    setError(null);
-    try {
-      await del(`/api/targets/${key}?hard=true`);
-      reload();
-      notify(`Target "${key}" permanently deleted.`);
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
+  const visible = targets.filter((t) => showInactive || t.status === "ACTIVE");
 
   return (
     <div>
@@ -135,14 +100,10 @@ export function TargetsPage() {
                 placeholder="https://example.com"
               />
             </label>
-            <label>
-              Authentication config (optional)
-              <input
-                value={form.authenticationConfig}
-                onChange={(e) => setForm({ ...form, authenticationConfig: e.target.value })}
-              />
-            </label>
           </div>
+          <p className="muted" style={{ margin: 0 }}>
+            Authentication can be configured after creation, from the Target's own page.
+          </p>
           <button type="submit" className="btn-primary">
             Create Target
           </button>
@@ -150,67 +111,19 @@ export function TargetsPage() {
       )}
 
       <div className="card-list">
-        {targets
-          .filter((t) => showInactive || t.status === "ACTIVE")
-          .map((t) => (
-          <div className="card entity-card" key={t.key}>
-            <div className="entity-card-header">
-              <div>
-                <strong>{t.name}</strong>
-                <div className="muted">
-                  <code>{t.key}</code> &middot; <code>{t.baseUrl}</code>
-                </div>
-              </div>
-              <div className="entity-card-actions">
-                <StatusBadge value={t.status} />
-                <button onClick={() => setFieldsOpenKey(fieldsOpenKey === t.key ? null : t.key)}>
-                  {fieldsOpenKey === t.key ? "Hide endpoints" : "Endpoints"}
-                </button>
-                {loggedIn && (
-                  <>
-                    <button onClick={() => startEdit(t)}>{editingKey === t.key ? "Close" : "Edit"}</button>
-                    {t.status === "ACTIVE" && <button onClick={() => deactivate(t.key)}>Deactivate</button>}
-                    <button className="btn-danger" onClick={() => hardDelete(t.key)}>
-                      Delete permanently
-                    </button>
-                  </>
-                )}
+        {visible.map((t) => (
+          <Link className="entity-row" to={`/targets/${t.key}`} key={t.key}>
+            <div className="entity-row-main">
+              <strong>{t.name}</strong>
+              <div className="entity-row-sub">
+                <code>{t.key}</code> &middot; <code>{t.baseUrl}</code>
               </div>
             </div>
-            {fieldsOpenKey === t.key && (
-              <div className="entity-card-edit">
-                <p className="muted">
-                  Endpoints this Target exposes, each with its own request fields — registered here so
-                  Subscriptions can pick a real API contract and map its fields via dropdown instead of
-                  free-typed method/path/field names.
-                </p>
-                <TargetEndpoints targetKey={t.key} loggedIn={loggedIn} />
-              </div>
-            )}
-            {editingKey === t.key && (
-              <div className="entity-card-edit">
-                <div className="form-grid">
-                  <label>
-                    Name
-                    <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                  </label>
-                  <label className="form-wide">
-                    Base URL
-                    <input
-                      value={editForm.baseUrl}
-                      onChange={(e) => setEditForm({ ...editForm, baseUrl: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <button className="btn-primary" onClick={() => saveEdit(t.key)}>
-                  Save
-                </button>
-              </div>
-            )}
-          </div>
+            <StatusBadge value={t.status} />
+          </Link>
         ))}
         {loading && <p className="muted">Loading Targets...</p>}
-        {!loading && targets.filter((t) => showInactive || t.status === "ACTIVE").length === 0 && (
+        {!loading && visible.length === 0 && (
           <p className="muted">{targets.length === 0 ? "No Targets yet." : "No active Targets — try “Show deactivated”."}</p>
         )}
       </div>

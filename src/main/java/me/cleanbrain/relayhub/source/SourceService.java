@@ -52,7 +52,14 @@ public class SourceService {
         source.setName(request.name());
         source.setDescription(request.description());
         source.setAuthenticationType(request.authenticationType() != null ? request.authenticationType() : AuthenticationType.NONE);
-        source.setAuthenticationConfig(request.authenticationConfig());
+        // Blank/null leaves the existing secret untouched, not cleared — SourceResponse never
+        // echoes authenticationConfig back (see its Javadoc), so the console's edit form can only
+        // ever send a *new* value or nothing; treating "nothing" as "clear it" would silently wipe
+        // a working secret on every unrelated edit (e.g. just renaming the Source). Stage 3's admin
+        // console surfaced this — see its Authentication tab's "leave blank to keep existing" UX.
+        if (request.authenticationConfig() != null && !request.authenticationConfig().isBlank()) {
+            source.setAuthenticationConfig(request.authenticationConfig());
+        }
         return source;
     }
 

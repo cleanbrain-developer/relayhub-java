@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
-import { del, get, post, put } from "../api";
+import { Link } from "react-router-dom";
+import { get, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Source, SourceEvent, Subscription, Target, TargetEndpoint } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
@@ -18,6 +19,11 @@ const emptyForm = {
   maxAttempts: "",
 };
 
+/**
+ * List of Subscriptions — Source Event -> Target Endpoint -> Status at a glance, browsing and
+ * creation only. Editing (General/Source/Target/Mapping/Filter/Delivery Policy) and the dangerous
+ * actions all live on SubscriptionDetailPage now (Stage 3, maintainer request 2026-09-30).
+ */
 export function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,14 +36,6 @@ export function SubscriptionsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    description: "",
-    targetPayloadTemplate: "",
-    filterExpression: "",
-    maxAttempts: "",
-  });
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
 
@@ -112,59 +110,7 @@ export function SubscriptionsPage() {
     }
   }
 
-  function startEdit(sub: Subscription) {
-    setEditingId(editingId === sub.id ? null : sub.id);
-    setEditForm({
-      name: sub.name,
-      description: sub.description,
-      targetPayloadTemplate: sub.targetPayloadTemplate,
-      filterExpression: sub.filterExpression ?? "",
-      maxAttempts: sub.maxAttempts !== null ? String(sub.maxAttempts) : "",
-    });
-  }
-
-  async function saveEdit(id: string) {
-    setError(null);
-    try {
-      await put(`/api/subscriptions/${id}`, {
-        ...editForm,
-        filterExpression: editForm.filterExpression || null,
-        maxAttempts: editForm.maxAttempts ? Number(editForm.maxAttempts) : null,
-      });
-      setEditingId(null);
-      reload();
-      notify("Subscription updated.");
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
-
-  async function deactivate(id: string) {
-    if (!confirm("Deactivate this Subscription? Existing Delivery history is kept.")) return;
-    setError(null);
-    try {
-      await del(`/api/subscriptions/${id}`);
-      reload();
-      notify("Subscription deactivated.");
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
-
-  async function hardDelete(id: string) {
-    if (!confirm("Permanently delete this Subscription? This cannot be undone.")) return;
-    setError(null);
-    try {
-      await del(`/api/subscriptions/${id}?hard=true`);
-      reload();
-      notify("Subscription permanently deleted.");
-    } catch (err) {
-      setError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
+  const visible = subscriptions.filter((s) => showInactive || s.status === "ACTIVE");
 
   return (
     <div>
@@ -280,26 +226,10 @@ export function SubscriptionsPage() {
                 targetEndpointKey={form.targetEndpointKey}
               />
             </label>
-            <label className="form-wide">
-              Filter (optional, free text — not yet enforced, see ADR-0005)
-              <input
-                placeholder='e.g. status == "DELAYED"'
-                value={form.filterExpression}
-                onChange={(e) => setForm({ ...form, filterExpression: e.target.value })}
-              />
-            </label>
-            <label>
-              Max attempts override (optional)
-              <input
-                type="number"
-                min={1}
-                max={10}
-                placeholder="uses the global default"
-                value={form.maxAttempts}
-                onChange={(e) => setForm({ ...form, maxAttempts: e.target.value })}
-              />
-            </label>
           </div>
+          <p className="muted" style={{ margin: 0 }}>
+            Filter and Delivery Policy can be configured after creation, from the Subscription's own page.
+          </p>
           <button type="submit" className="btn-primary">
             Create Subscription
           </button>
@@ -307,84 +237,19 @@ export function SubscriptionsPage() {
       )}
 
       <div className="card-list">
-        {subscriptions
-          .filter((s) => showInactive || s.status === "ACTIVE")
-          .map((s) => (
-          <div className="card entity-card" key={s.id}>
-            <div className="entity-card-header">
-              <div>
-                <strong>{s.name}</strong>
-                <div className="muted">
-                  {s.sourceEventKey} &rarr; {s.targetKey}/{s.targetEndpointKey} &middot; {s.targetMethod}{" "}
-                  <code>{s.targetPath}</code>
-                </div>
-              </div>
-              <div className="entity-card-actions">
-                <StatusBadge value={s.status} />
-                {loggedIn && (
-                  <>
-                    <button onClick={() => startEdit(s)}>{editingId === s.id ? "Close" : "Edit"}</button>
-                    {s.status === "ACTIVE" && <button onClick={() => deactivate(s.id)}>Deactivate</button>}
-                    <button className="btn-danger" onClick={() => hardDelete(s.id)}>
-                      Delete permanently
-                    </button>
-                  </>
-                )}
+        {visible.map((s) => (
+          <Link className="entity-row" to={`/subscriptions/${s.id}`} key={s.id}>
+            <div className="entity-row-main">
+              <strong>{s.name}</strong>
+              <div className="entity-row-sub">
+                {s.sourceKey}/{s.sourceEventKey} &rarr; {s.targetKey}/{s.targetEndpointKey}
               </div>
             </div>
-            {editingId === s.id && (
-              <div className="entity-card-edit">
-                <div className="form-grid">
-                  <label>
-                    Name
-                    <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-                  </label>
-                  <label className="form-wide">
-                    Description
-                    <input
-                      value={editForm.description}
-                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    />
-                  </label>
-                  <label className="form-wide">
-                    Payload mapping
-                    <MappingBuilder
-                      value={editForm.targetPayloadTemplate}
-                      onChange={(t) => setEditForm({ ...editForm, targetPayloadTemplate: t })}
-                      sourceKey={s.sourceKey}
-                      sourceEventKey={s.sourceEventKey}
-                      targetKey={s.targetKey}
-                      targetEndpointKey={s.targetEndpointKey}
-                    />
-                  </label>
-                  <label className="form-wide">
-                    Filter (optional, free text — not yet enforced, see ADR-0005)
-                    <input
-                      value={editForm.filterExpression}
-                      onChange={(e) => setEditForm({ ...editForm, filterExpression: e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    Max attempts override (optional — currently effective: {s.effectiveMaxAttempts})
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      placeholder="uses the global default"
-                      value={editForm.maxAttempts}
-                      onChange={(e) => setEditForm({ ...editForm, maxAttempts: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <button className="btn-primary" onClick={() => saveEdit(s.id)}>
-                  Save
-                </button>
-              </div>
-            )}
-          </div>
+            <StatusBadge value={s.status} />
+          </Link>
         ))}
         {loading && <p className="muted">Loading Subscriptions...</p>}
-        {!loading && subscriptions.filter((s) => showInactive || s.status === "ACTIVE").length === 0 && (
+        {!loading && visible.length === 0 && (
           <p className="muted">
             {subscriptions.length === 0 ? "No Subscriptions yet." : "No active Subscriptions — try “Show deactivated”."}
           </p>
