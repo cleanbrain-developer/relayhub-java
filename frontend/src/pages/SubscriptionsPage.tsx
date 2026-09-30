@@ -241,8 +241,18 @@ export function SubscriptionsPage() {
           <Link className="entity-row" to={`/subscriptions/${s.id}`} key={s.id}>
             <div className="entity-row-main">
               <strong>{s.name}</strong>
-              <div className="entity-row-sub">
-                {s.sourceKey}/{s.sourceEventKey} &rarr; {s.targetKey}/{s.targetEndpointKey}
+              <div className="subscription-flow">
+                <span className="flow-group">
+                  <code>{s.sourceKey}</code>
+                  <span className="flow-chevron">&rsaquo;</span>
+                  <code>{s.sourceEventKey}</code>
+                </span>
+                <span className="flow-arrow">&rarr;</span>
+                <span className="flow-group">
+                  <code>{s.targetKey}</code>
+                  <span className="flow-chevron">&rsaquo;</span>
+                  <code>{s.targetEndpointKey}</code>
+                </span>
               </div>
             </div>
             <div className="entity-card-actions">

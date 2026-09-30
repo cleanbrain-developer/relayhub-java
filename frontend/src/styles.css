@@ -991,6 +991,31 @@ code {
   font-size: 0.92rem;
 }
 
+.subscription-flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.flow-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.flow-chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.flow-arrow {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
 .entity-row-sub {
   color: var(--muted);
   font-size: 0.82rem;
