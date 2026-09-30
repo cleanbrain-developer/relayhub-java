@@ -128,14 +128,16 @@ class DeliveryDedupTest {
         postJson("/api/targets", ("""
                 {"key":"%s","name":"Dedup Target","description":"Always succeeds","baseUrl":"%s"}
                 """).formatted(targetKey, wireMockServer.baseUrl()));
+        postJson(("/api/targets/%s/endpoints").formatted(targetKey), """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook"}
+                """);
     }
 
     private void registerSubscription(String sourceKey, String targetKey) {
         postJson("/api/subscriptions", ("""
                 {
-                  "sourceKey":"%s","sourceEventKey":"customer-created","targetKey":"%s",
+                  "sourceKey":"%s","sourceEventKey":"customer-created","targetKey":"%s","targetEndpointKey":"webhook",
                   "name":"Dedup Sub","description":"Routes to dedup target",
-                  "targetMethod":"POST","targetPath":"/webhook",
                   "targetPayloadTemplate":"{\\"dealerId\\":\\"${$.customerNo}\\"}"
                 }
                 """).formatted(sourceKey, targetKey));

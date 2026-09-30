@@ -1,12 +1,12 @@
 package me.cleanbrain.relayhub.target;
 
 import lombok.RequiredArgsConstructor;
+import me.cleanbrain.relayhub.common.AuthenticationType;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
-import me.cleanbrain.relayhub.subscription.SubscriptionRepository;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
 import me.cleanbrain.relayhub.target.dto.TargetUpdateRequest;
-import me.cleanbrain.relayhub.targetfield.TargetFieldRepository;
+import me.cleanbrain.relayhub.targetendpoint.TargetEndpointRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,12 +17,14 @@ import java.util.List;
 public class TargetService {
 
     private final TargetRepository targetRepository;
-    // Repository, not SubscriptionService — see SourceEventService's own comment on the same
-    // pattern (avoids a circular service dependency; SubscriptionService already depends on
-    // TargetService).
-    private final SubscriptionRepository subscriptionRepository;
-    // Same repository-not-service reasoning — TargetFieldService already depends on this class.
-    private final TargetFieldRepository targetFieldRepository;
+    // Repository, not TargetEndpointService — see SourceEventService's own comment on the same
+    // pattern (avoids a circular service dependency; TargetEndpointService already depends on
+    // TargetService). A Subscription no longer references Target directly (only via
+    // TargetEndpoint — see Subscription.java), so hard-deleting every TargetEndpoint first
+    // (TargetEndpointService#hardDelete, itself guarded against referencing Subscriptions)
+    // transitively guarantees no Subscription is orphaned by deleting a Target — no separate
+    // Subscription check needed here.
+    private final TargetEndpointRepository targetEndpointRepository;
 
     @Transactional
     public Target create(TargetCreateRequest request) {
@@ -34,6 +36,7 @@ public class TargetService {
                 .name(request.name())
                 .description(request.description())
                 .baseUrl(request.baseUrl())
+                .authenticationType(request.authenticationType() != null ? request.authenticationType() : AuthenticationType.NONE)
                 .authenticationConfig(request.authenticationConfig())
                 .status(Status.ACTIVE)
                 .build();
@@ -55,6 +58,7 @@ public class TargetService {
         target.setName(request.name());
         target.setDescription(request.description());
         target.setBaseUrl(request.baseUrl());
+        target.setAuthenticationType(request.authenticationType() != null ? request.authenticationType() : AuthenticationType.NONE);
         target.setAuthenticationConfig(request.authenticationConfig());
         return target;
     }
@@ -67,24 +71,19 @@ public class TargetService {
     }
 
     /**
-     * Permanently removes the row — admin-only. Blocked (409) while any Subscription (any
-     * status) still references it, since {@code subscriptions.target_id} is a real DB foreign
-     * key — deactivate/hard-delete those Subscriptions first.
+     * Permanently removes the row — admin-only. Blocked (409) while any Target Endpoint (any
+     * status) still references it, since {@code target_endpoints.target_id} is a real DB foreign
+     * key — deactivate/hard-delete those first (which itself is blocked while a Subscription
+     * still references the endpoint, see TargetEndpointService#hardDelete).
      */
     @Transactional
     public void hardDelete(String key) {
         Target target = getByKey(key);
-        long subscriptionCount = subscriptionRepository.countByTarget_Id(target.getId());
-        if (subscriptionCount > 0) {
+        long endpointCount = targetEndpointRepository.countByTarget_Id(target.getId());
+        if (endpointCount > 0) {
             throw new IllegalStateException(
-                    "Cannot permanently delete Target %s: %d Subscription(s) still reference it"
-                            .formatted(key, subscriptionCount));
-        }
-        long fieldCount = targetFieldRepository.countByTarget_Id(target.getId());
-        if (fieldCount > 0) {
-            throw new IllegalStateException(
-                    "Cannot permanently delete Target %s: %d Target Field(s) still registered on it"
-                            .formatted(key, fieldCount));
+                    "Cannot permanently delete Target %s: %d Target Endpoint(s) still registered on it"
+                            .formatted(key, endpointCount));
         }
         targetRepository.delete(target);
     }

@@ -1,23 +1,21 @@
 import { FormEvent, useEffect, useState } from "react";
 import { del, get, post, put } from "../api";
 import { isLoggedIn } from "../auth";
-import { HttpVerb, Source, SourceEvent, Subscription, Target } from "../types";
+import { Source, SourceEvent, Subscription, Target, TargetEndpoint } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { MappingBuilder } from "../components/MappingBuilder";
 import { useToast } from "../toast";
-
-const HTTP_VERBS: HttpVerb[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
 const emptyForm = {
   sourceKey: "",
   sourceEventKey: "",
   targetKey: "",
+  targetEndpointKey: "",
   name: "",
   description: "",
-  targetMethod: "POST" as HttpVerb,
-  targetPath: "",
   targetPayloadTemplate: "",
-  retryPolicy: "",
+  filterExpression: "",
+  maxAttempts: "",
 };
 
 export function SubscriptionsPage() {
@@ -26,6 +24,7 @@ export function SubscriptionsPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [targets, setTargets] = useState<Target[]>([]);
   const [events, setEvents] = useState<SourceEvent[]>([]);
+  const [targetEndpoints, setTargetEndpoints] = useState<TargetEndpoint[]>([]);
   const [dropdownError, setDropdownError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -35,10 +34,9 @@ export function SubscriptionsPage() {
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
-    targetMethod: "POST" as HttpVerb,
-    targetPath: "",
     targetPayloadTemplate: "",
-    retryPolicy: "",
+    filterExpression: "",
+    maxAttempts: "",
   });
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
@@ -73,12 +71,37 @@ export function SubscriptionsPage() {
       });
   }, [form.sourceKey]);
 
+  useEffect(() => {
+    if (!form.targetKey) {
+      setTargetEndpoints([]);
+      return;
+    }
+    get<TargetEndpoint[]>(`/api/targets/${form.targetKey}/endpoints`)
+      .then(setTargetEndpoints)
+      .catch(() => {
+        setTargetEndpoints([]);
+        setDropdownError("Couldn't load Target Endpoints for the selected Target — try reloading the page.");
+      });
+  }, [form.targetKey]);
+
+  function toCreateBody(state: typeof form) {
+    const { sourceKey, sourceEventKey, targetKey, targetEndpointKey, ...rest } = state;
+    return {
+      sourceKey,
+      sourceEventKey,
+      targetKey,
+      targetEndpointKey,
+      ...rest,
+      filterExpression: rest.filterExpression || null,
+      maxAttempts: rest.maxAttempts ? Number(rest.maxAttempts) : null,
+    };
+  }
+
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      const { sourceKey, sourceEventKey, targetKey, ...rest } = form;
-      await post("/api/subscriptions", { sourceKey, sourceEventKey, targetKey, ...rest });
+      await post("/api/subscriptions", toCreateBody(form));
       setForm(emptyForm);
       setShowCreate(false);
       reload();
@@ -94,17 +117,20 @@ export function SubscriptionsPage() {
     setEditForm({
       name: sub.name,
       description: sub.description,
-      targetMethod: sub.targetMethod,
-      targetPath: sub.targetPath,
       targetPayloadTemplate: sub.targetPayloadTemplate,
-      retryPolicy: sub.retryPolicy ?? "",
+      filterExpression: sub.filterExpression ?? "",
+      maxAttempts: sub.maxAttempts !== null ? String(sub.maxAttempts) : "",
     });
   }
 
   async function saveEdit(id: string) {
     setError(null);
     try {
-      await put(`/api/subscriptions/${id}`, editForm);
+      await put(`/api/subscriptions/${id}`, {
+        ...editForm,
+        filterExpression: editForm.filterExpression || null,
+        maxAttempts: editForm.maxAttempts ? Number(editForm.maxAttempts) : null,
+      });
       setEditingId(null);
       reload();
       notify("Subscription updated.");
@@ -198,13 +224,35 @@ export function SubscriptionsPage() {
             </label>
             <label>
               Target
-              <select required value={form.targetKey} onChange={(e) => setForm({ ...form, targetKey: e.target.value })}>
+              <select
+                required
+                value={form.targetKey}
+                onChange={(e) => setForm({ ...form, targetKey: e.target.value, targetEndpointKey: "" })}
+              >
                 <option value="" disabled>
                   Select a Target
                 </option>
                 {targets.map((t) => (
                   <option key={t.key} value={t.key}>
                     {t.key}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Target Endpoint
+              <select
+                required
+                value={form.targetEndpointKey}
+                onChange={(e) => setForm({ ...form, targetEndpointKey: e.target.value })}
+                disabled={!form.targetKey}
+              >
+                <option value="" disabled>
+                  Select an Endpoint
+                </option>
+                {targetEndpoints.map((ep) => (
+                  <option key={ep.key} value={ep.key}>
+                    {ep.key} ({ep.httpMethod} {ep.path})
                   </option>
                 ))}
               </select>
@@ -221,26 +269,6 @@ export function SubscriptionsPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </label>
-            <label>
-              Target method
-              <select
-                value={form.targetMethod}
-                onChange={(e) => setForm({ ...form, targetMethod: e.target.value as HttpVerb })}
-              >
-                {HTTP_VERBS.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Target path
-              <input
-                required
-                value={form.targetPath}
-                onChange={(e) => setForm({ ...form, targetPath: e.target.value })}
-                placeholder="/webhook"
-              />
-            </label>
             <label className="form-wide">
               Payload mapping
               <MappingBuilder
@@ -249,11 +277,27 @@ export function SubscriptionsPage() {
                 sourceKey={form.sourceKey}
                 sourceEventKey={form.sourceEventKey}
                 targetKey={form.targetKey}
+                targetEndpointKey={form.targetEndpointKey}
+              />
+            </label>
+            <label className="form-wide">
+              Filter (optional, free text — not yet enforced, see ADR-0005)
+              <input
+                placeholder='e.g. status == "DELAYED"'
+                value={form.filterExpression}
+                onChange={(e) => setForm({ ...form, filterExpression: e.target.value })}
               />
             </label>
             <label>
-              Retry policy (optional, free text)
-              <input value={form.retryPolicy} onChange={(e) => setForm({ ...form, retryPolicy: e.target.value })} />
+              Max attempts override (optional)
+              <input
+                type="number"
+                min={1}
+                max={10}
+                placeholder="uses the global default"
+                value={form.maxAttempts}
+                onChange={(e) => setForm({ ...form, maxAttempts: e.target.value })}
+              />
             </label>
           </div>
           <button type="submit" className="btn-primary">
@@ -271,7 +315,8 @@ export function SubscriptionsPage() {
               <div>
                 <strong>{s.name}</strong>
                 <div className="muted">
-                  {s.sourceEventKey} &rarr; {s.targetKey} &middot; {s.targetMethod} <code>{s.targetPath}</code>
+                  {s.sourceEventKey} &rarr; {s.targetKey}/{s.targetEndpointKey} &middot; {s.targetMethod}{" "}
+                  <code>{s.targetPath}</code>
                 </div>
               </div>
               <div className="entity-card-actions">
@@ -301,24 +346,6 @@ export function SubscriptionsPage() {
                       onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     />
                   </label>
-                  <label>
-                    Target method
-                    <select
-                      value={editForm.targetMethod}
-                      onChange={(e) => setEditForm({ ...editForm, targetMethod: e.target.value as HttpVerb })}
-                    >
-                      {HTTP_VERBS.map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Target path
-                    <input
-                      value={editForm.targetPath}
-                      onChange={(e) => setEditForm({ ...editForm, targetPath: e.target.value })}
-                    />
-                  </label>
                   <label className="form-wide">
                     Payload mapping
                     <MappingBuilder
@@ -327,13 +354,25 @@ export function SubscriptionsPage() {
                       sourceKey={s.sourceKey}
                       sourceEventKey={s.sourceEventKey}
                       targetKey={s.targetKey}
+                      targetEndpointKey={s.targetEndpointKey}
+                    />
+                  </label>
+                  <label className="form-wide">
+                    Filter (optional, free text — not yet enforced, see ADR-0005)
+                    <input
+                      value={editForm.filterExpression}
+                      onChange={(e) => setEditForm({ ...editForm, filterExpression: e.target.value })}
                     />
                   </label>
                   <label>
-                    Retry policy
+                    Max attempts override (optional — currently effective: {s.effectiveMaxAttempts})
                     <input
-                      value={editForm.retryPolicy}
-                      onChange={(e) => setEditForm({ ...editForm, retryPolicy: e.target.value })}
+                      type="number"
+                      min={1}
+                      max={10}
+                      placeholder="uses the global default"
+                      value={editForm.maxAttempts}
+                      onChange={(e) => setEditForm({ ...editForm, maxAttempts: e.target.value })}
                     />
                   </label>
                 </div>

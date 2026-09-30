@@ -83,16 +83,18 @@ class IngressVerticalSliceTest {
         postJson(baseUrl + "/api/targets", ("""
                 {"key":"demo-target-a","name":"Demo Target A","description":"Acceptance scenario target","baseUrl":"%s"}
                 """).formatted(wireMockServer.baseUrl()));
+        postJson(baseUrl + "/api/targets/demo-target-a/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook"}
+                """);
 
         postJson(baseUrl + "/api/subscriptions", """
                 {
                   "sourceKey":"demo-source",
                   "sourceEventKey":"customer-created",
                   "targetKey":"demo-target-a",
+                  "targetEndpointKey":"webhook",
                   "name":"Demo Subscription",
                   "description":"Routes customer-created to Target A",
-                  "targetMethod":"POST",
-                  "targetPath":"/webhook",
                   "targetPayloadTemplate":"{\\"dealerId\\":\\"${$.customerNo}\\",\\"dealerName\\":\\"${$.name}\\",\\"active\\":true}"
                 }
                 """);

@@ -1,12 +1,18 @@
 package me.cleanbrain.relayhub.target.dto;
 
+import me.cleanbrain.relayhub.common.AuthenticationType;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.target.Target;
 
 import java.util.UUID;
 
-public record TargetResponse(UUID id, String key, String name, String description, String baseUrl, Status status) {
+public record TargetResponse(
+        UUID id, String key, String name, String description, String baseUrl,
+        AuthenticationType authenticationType, Status status
+) {
     public static TargetResponse from(Target target) {
-        return new TargetResponse(target.getId(), target.getKey(), target.getName(), target.getDescription(), target.getBaseUrl(), target.getStatus());
+        return new TargetResponse(
+                target.getId(), target.getKey(), target.getName(), target.getDescription(), target.getBaseUrl(),
+                target.getAuthenticationType(), target.getStatus());
     }
 }

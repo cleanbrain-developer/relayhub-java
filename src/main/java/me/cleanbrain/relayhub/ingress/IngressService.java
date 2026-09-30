@@ -31,9 +31,11 @@ import me.cleanbrain.relayhub.subscription.Subscription;
 import me.cleanbrain.relayhub.subscription.SubscriptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.Set;
@@ -63,8 +65,18 @@ public class IngressService {
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
     private final LiveActivityBroadcaster liveActivityBroadcaster;
+    private final PlatformTransactionManager transactionManager;
 
-    @Transactional
+    /**
+     * Not {@code @Transactional} on this method itself, deliberately — the write path below is
+     * wrapped in its own {@link TransactionTemplate} block instead, so a constraint violation from
+     * that block can be caught and recovered from *outside* its transaction. An {@code
+     * @Transactional} method catching its own propagating exception doesn't work for this: Spring
+     * marks the transaction rollback-only as soon as the exception is thrown, so anything the
+     * catch block tried to do on that same connection would itself fail (same reasoning
+     * DeliveryService.deliver()'s own duplicate-guard Javadoc documents for the same class of
+     * problem on the delivery side).
+     */
     public IngressResult handle(String ingressPath, HttpMethod method, String rawBody, HttpServletRequest request) {
         SourceEvent sourceEvent = sourceEventRepository.findByIngressPathAndIngressMethod(ingressPath, HttpVerb.from(method))
                 .orElseThrow(() -> new NotFoundException("No Source Event registered for %s %s".formatted(method, ingressPath)));
@@ -87,31 +99,57 @@ public class IngressService {
             }
         }
 
-        Event event = Event.builder()
-                .sourceId(sourceEvent.getSource().getId())
-                .sourceEventId(sourceEvent.getId())
-                .resourceType(sourceEvent.getResourceType())
-                .resourceId(resourceId)
-                .operation(sourceEvent.getOperation())
-                .occurredAt(occurredAt)
-                .idempotencyKey(idempotencyKey)
-                .payload(rawBody)
-                .build();
-        event = eventRepository.save(event);
-
-        int queuedCount = 0;
-        for (Subscription subscription : subscriptionService.findActiveForSourceEvent(sourceEvent.getId())) {
-            outboxEventRepository.save(OutboxEvent.builder()
-                    .eventId(event.getId())
-                    .subscriptionId(subscription.getId())
-                    .status(OutboxStatus.PENDING)
-                    .build());
-            queuedCount++;
+        try {
+            return persistEventAndQueueDeliveries(sourceEvent, resourceId, occurredAt, idempotencyKey, rawBody);
+        } catch (DataIntegrityViolationException e) {
+            // The app-level check above is a fast path for the common case, not the real
+            // backstop — db/migration/V11__idempotency_db_constraint.sql's partial unique index
+            // on (source_event_id, idempotency_key) is. A genuine concurrent duplicate request
+            // (two requests both passing the SELECT above before either commits) lands here.
+            if (idempotencyKey == null) {
+                throw e; // nothing else this table constrains could have caused this
+            }
+            log.info("Concurrent duplicate ingress for idempotency key {} on Source Event {} — recovered via DB constraint",
+                    idempotencyKey, sourceEvent.getId());
+            meterRegistry.counter("relayhub.ingress.events", "outcome", "deduplicated").increment();
+            Event existing = eventRepository.findBySourceEventIdAndIdempotencyKey(sourceEvent.getId(), idempotencyKey)
+                    .orElseThrow(() -> e);
+            return new IngressResult(existing, 0, true);
         }
+    }
 
-        meterRegistry.counter("relayhub.ingress.events", "outcome", "created").increment();
-        liveActivityBroadcaster.broadcast(LiveEvent.ingress(sourceEvent.getSource().getKey(), sourceEvent.getKey()));
-        return new IngressResult(event, queuedCount, false);
+    private IngressResult persistEventAndQueueDeliveries(SourceEvent sourceEvent, String resourceId, Instant occurredAt,
+                                                           String idempotencyKey, String rawBody) {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        return transactionTemplate.execute(status -> {
+            Event event = Event.builder()
+                    .sourceId(sourceEvent.getSource().getId())
+                    .sourceEventId(sourceEvent.getId())
+                    .resourceType(sourceEvent.getResourceType())
+                    .resourceId(resourceId)
+                    .operation(sourceEvent.getOperation())
+                    .occurredAt(occurredAt)
+                    .idempotencyKey(idempotencyKey)
+                    .payload(rawBody)
+                    .build();
+            // Flushed (not deferred to commit) so a constraint violation surfaces here, inside
+            // this transaction, where the caller's try/catch can still see it.
+            event = eventRepository.saveAndFlush(event);
+
+            int queuedCount = 0;
+            for (Subscription subscription : subscriptionService.findActiveForSourceEvent(sourceEvent.getId())) {
+                outboxEventRepository.save(OutboxEvent.builder()
+                        .eventId(event.getId())
+                        .subscriptionId(subscription.getId())
+                        .status(OutboxStatus.PENDING)
+                        .build());
+                queuedCount++;
+            }
+
+            meterRegistry.counter("relayhub.ingress.events", "outcome", "created").increment();
+            liveActivityBroadcaster.broadcast(LiveEvent.ingress(sourceEvent.getSource().getKey(), sourceEvent.getKey()));
+            return new IngressResult(event, queuedCount, false);
+        });
     }
 
     private JsonNode parsePayload(String rawBody) {

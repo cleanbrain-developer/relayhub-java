@@ -3,12 +3,13 @@ package me.cleanbrain.relayhub.subscription;
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
+import me.cleanbrain.relayhub.deliverysettings.DeliverySettingsService;
 import me.cleanbrain.relayhub.sourceevent.SourceEvent;
 import me.cleanbrain.relayhub.sourceevent.SourceEventService;
 import me.cleanbrain.relayhub.subscription.dto.SubscriptionCreateRequest;
 import me.cleanbrain.relayhub.subscription.dto.SubscriptionUpdateRequest;
-import me.cleanbrain.relayhub.target.Target;
-import me.cleanbrain.relayhub.target.TargetService;
+import me.cleanbrain.relayhub.targetendpoint.TargetEndpoint;
+import me.cleanbrain.relayhub.targetendpoint.TargetEndpointService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,22 +22,27 @@ public class SubscriptionService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final SourceEventService sourceEventService;
-    private final TargetService targetService;
+    private final TargetEndpointService targetEndpointService;
+    private final DeliverySettingsService deliverySettingsService;
 
     @Transactional
     public Subscription create(SubscriptionCreateRequest request) {
         SourceEvent sourceEvent = sourceEventService.getBySourceKeyAndKey(request.sourceKey(), request.sourceEventKey());
-        Target target = targetService.getByKey(request.targetKey());
+        TargetEndpoint targetEndpoint = targetEndpointService.getByTargetKeyAndKey(request.targetKey(), request.targetEndpointKey());
 
         Subscription subscription = Subscription.builder()
                 .sourceEvent(sourceEvent)
-                .target(target)
+                .targetEndpoint(targetEndpoint)
                 .name(request.name())
                 .description(request.description())
-                .targetMethod(request.targetMethod())
-                .targetPath(request.targetPath())
                 .targetPayloadTemplate(request.targetPayloadTemplate())
-                .retryPolicy(request.retryPolicy())
+                .filterExpression(request.filterExpression())
+                .maxAttempts(request.maxAttempts())
+                .initialBackoffMs(request.initialBackoffMs())
+                .maxBackoffMs(request.maxBackoffMs())
+                .backoffMultiplier(request.backoffMultiplier())
+                .jitter(request.jitter())
+                .timeoutMs(request.timeoutMs())
                 .status(Status.ACTIVE)
                 .build();
 
@@ -56,15 +62,26 @@ public class SubscriptionService {
                 .orElseThrow(() -> new NotFoundException("Subscription not found: " + id));
     }
 
+    /** {@link me.cleanbrain.relayhub.subscription.dto.SubscriptionResponse}'s effectiveMaxAttempts
+     *  — resolves the Subscription's own override against the global default. Public (not folded
+     *  into getById) so the controller can compute it once per response without a second lookup. */
+    public int resolveEffectiveMaxAttempts(Subscription subscription) {
+        return subscription.getMaxAttempts() != null ? subscription.getMaxAttempts() : deliverySettingsService.getMaxAttempts();
+    }
+
     @Transactional
     public Subscription update(UUID id, SubscriptionUpdateRequest request) {
         Subscription subscription = getById(id);
         subscription.setName(request.name());
         subscription.setDescription(request.description());
-        subscription.setTargetMethod(request.targetMethod());
-        subscription.setTargetPath(request.targetPath());
         subscription.setTargetPayloadTemplate(request.targetPayloadTemplate());
-        subscription.setRetryPolicy(request.retryPolicy());
+        subscription.setFilterExpression(request.filterExpression());
+        subscription.setMaxAttempts(request.maxAttempts());
+        subscription.setInitialBackoffMs(request.initialBackoffMs());
+        subscription.setMaxBackoffMs(request.maxBackoffMs());
+        subscription.setBackoffMultiplier(request.backoffMultiplier());
+        subscription.setJitter(request.jitter());
+        subscription.setTimeoutMs(request.timeoutMs());
         return subscription;
     }
 

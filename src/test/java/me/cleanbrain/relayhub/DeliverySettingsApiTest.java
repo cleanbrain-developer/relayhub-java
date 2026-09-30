@@ -117,9 +117,12 @@ class DeliverySettingsApiTest {
         postJson(admin, baseUrl + "/api/targets", """
                 {"key":"settings-verify-target","name":"Settings Verify Target","description":"x","baseUrl":"http://localhost:1"}
                 """);
+        postJson(admin, baseUrl + "/api/targets/settings-verify-target/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook"}
+                """);
         postJson(admin, baseUrl + "/api/subscriptions", """
                 {"sourceKey":"settings-verify-source","sourceEventKey":"created","targetKey":"settings-verify-target",
-                 "name":"Settings Verify Subscription","description":"x","targetMethod":"POST","targetPath":"/webhook",
+                 "targetEndpointKey":"webhook","name":"Settings Verify Subscription","description":"x",
                  "targetPayloadTemplate":"{}"}
                 """);
 

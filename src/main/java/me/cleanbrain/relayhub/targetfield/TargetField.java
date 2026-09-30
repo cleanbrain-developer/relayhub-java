@@ -8,19 +8,21 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import me.cleanbrain.relayhub.common.FieldDataType;
 import me.cleanbrain.relayhub.common.Status;
-import me.cleanbrain.relayhub.target.Target;
+import me.cleanbrain.relayhub.targetendpoint.TargetEndpoint;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One field a Target's payload can accept, registered so MappingBuilder can offer it as a
- * dropdown choice instead of requiring a free-typed field name. Scoped to the Target itself (not
- * per-endpoint/path) for v1 — see specs/006-field-registry/spec.md.
+ * One field a Target Endpoint's request payload can accept, registered so MappingBuilder can offer
+ * it as a dropdown choice instead of requiring a free-typed field name. Scoped to the
+ * TargetEndpoint (not the bare Target) — the same Target system can expose multiple endpoints with
+ * different request shapes, so a field is only meaningful relative to one endpoint's contract. See
+ * specs/006-field-registry/spec.md for the original (Target-scoped) design this replaces.
  */
 @Entity
-@Table(name = "target_fields", uniqueConstraints = @UniqueConstraint(columnNames = {"target_id", "field_key"}))
+@Table(name = "target_fields", uniqueConstraints = @UniqueConstraint(columnNames = {"target_endpoint_id", "field_key"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,8 +35,8 @@ public class TargetField {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "target_id", nullable = false)
-    private Target target;
+    @JoinColumn(name = "target_endpoint_id", nullable = false)
+    private TargetEndpoint targetEndpoint;
 
     /** Short field name shown in the mapping UI, e.g. "dealerId". Column named field_key — see
      *  SourceField's matching comment. */

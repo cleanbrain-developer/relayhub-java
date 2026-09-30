@@ -79,10 +79,13 @@ class DlqAutoReplaySchedulerTest {
         postJson(baseUrl + "/api/targets", ("""
                 {"key":"dlq-scheduler-target","name":"DLQ Scheduler Target","description":"Fails then recovers","baseUrl":"%s"}
                 """).formatted(wireMockServer.baseUrl()));
+        postJson(baseUrl + "/api/targets/dlq-scheduler-target/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook"}
+                """);
         postJson(baseUrl + "/api/subscriptions", """
                 {
                   "sourceKey":"dlq-scheduler-source","sourceEventKey":"created","targetKey":"dlq-scheduler-target",
-                  "name":"Sub","description":"x","targetMethod":"POST","targetPath":"/webhook",
+                  "targetEndpointKey":"webhook","name":"Sub","description":"x",
                   "targetPayloadTemplate":"{\\"id\\":\\"${$.id}\\"}"
                 }
                 """);

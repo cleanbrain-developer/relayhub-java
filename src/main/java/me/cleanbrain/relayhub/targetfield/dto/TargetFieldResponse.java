@@ -9,6 +9,7 @@ import java.util.UUID;
 public record TargetFieldResponse(
         UUID id,
         String targetKey,
+        String targetEndpointKey,
         String key,
         FieldDataType dataType,
         String description,
@@ -20,7 +21,8 @@ public record TargetFieldResponse(
     public static TargetFieldResponse from(TargetField field) {
         return new TargetFieldResponse(
                 field.getId(),
-                field.getTarget().getKey(),
+                field.getTargetEndpoint().getTarget().getKey(),
+                field.getTargetEndpoint().getKey(),
                 field.getKey(),
                 field.getDataType(),
                 field.getDescription(),

@@ -3,7 +3,7 @@ import { del, get, post, put } from "../api";
 import { isLoggedIn } from "../auth";
 import { Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
-import { FieldRegistryEditor } from "../components/FieldRegistryEditor";
+import { TargetEndpoints } from "../components/TargetEndpoints";
 import { useToast } from "../toast";
 
 const emptyForm = { key: "", name: "", description: "", baseUrl: "", authenticationConfig: "" };
@@ -164,7 +164,7 @@ export function TargetsPage() {
               <div className="entity-card-actions">
                 <StatusBadge value={t.status} />
                 <button onClick={() => setFieldsOpenKey(fieldsOpenKey === t.key ? null : t.key)}>
-                  {fieldsOpenKey === t.key ? "Hide fields" : "Fields"}
+                  {fieldsOpenKey === t.key ? "Hide endpoints" : "Endpoints"}
                 </button>
                 {loggedIn && (
                   <>
@@ -180,10 +180,11 @@ export function TargetsPage() {
             {fieldsOpenKey === t.key && (
               <div className="entity-card-edit">
                 <p className="muted">
-                  Fields this Target can accept — registered here so Subscriptions can map them via dropdown instead
-                  of free-typed field names.
+                  Endpoints this Target exposes, each with its own request fields — registered here so
+                  Subscriptions can pick a real API contract and map its fields via dropdown instead of
+                  free-typed method/path/field names.
                 </p>
-                <FieldRegistryEditor basePath={`/api/targets/${t.key}/fields`} includeJsonPath={false} loggedIn={loggedIn} />
+                <TargetEndpoints targetKey={t.key} loggedIn={loggedIn} />
               </div>
             )}
             {editingKey === t.key && (

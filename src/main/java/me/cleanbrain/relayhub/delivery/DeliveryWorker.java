@@ -34,9 +34,9 @@ public class DeliveryWorker {
 
     // @Transactional here (not just on DeliveryService.deliver()) matters: it keeps one Hibernate
     // session open across the Subscription/Event loads below AND the deliver() call, so
-    // subscription.getTarget() (a lazy association) can still initialize. Without it, findById
-    // returns a detached entity in its own short transaction, and deliver()'s separate
-    // transaction hits a LazyInitializationException — observed live in this test.
+    // subscription.getTargetEndpoint().getTarget() (lazy associations) can still initialize.
+    // Without it, findById returns a detached entity in its own short transaction, and deliver()'s
+    // separate transaction hits a LazyInitializationException — observed live in this test.
     @KafkaListener(topics = OutboxPublisher.TOPIC, groupId = "relayhub-delivery-worker")
     @Transactional
     public void onDeliveryTask(DeliveryTaskMessage message) {

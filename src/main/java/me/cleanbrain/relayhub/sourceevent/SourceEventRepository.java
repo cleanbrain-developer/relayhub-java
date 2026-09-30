@@ -23,7 +23,18 @@ public interface SourceEventRepository extends JpaRepository<SourceEvent, UUID> 
     @Query("select se from SourceEvent se join fetch se.source where se.source.key = :sourceKey and se.key = :key")
     Optional<SourceEvent> findBySourceKeyAndKey(@Param("sourceKey") String sourceKey, @Param("key") String key);
 
-    Optional<SourceEvent> findByIngressPathAndIngressMethod(String ingressPath, HttpVerb ingressMethod);
+    /**
+     * Eagerly loads {@code source} — same open-in-view:false reasoning as
+     * {@link #findBySourceKeyAndKey}. This one specifically matters now that
+     * {@code IngressService.handle()} is no longer a single {@code @Transactional} method (the
+     * write path was split into its own {@link org.springframework.transaction.support.TransactionTemplate}
+     * block so a DB constraint violation could be caught and recovered from outside it, see
+     * IngressService) — the {@code SourceEvent} returned here is read in a separate transaction
+     * from that later write block, so a lazy {@code source} proxy would otherwise throw
+     * LazyInitializationException when read/broadcast there.
+     */
+    @Query("select se from SourceEvent se join fetch se.source where se.ingressPath = :ingressPath and se.ingressMethod = :ingressMethod")
+    Optional<SourceEvent> findByIngressPathAndIngressMethod(@Param("ingressPath") String ingressPath, @Param("ingressMethod") HttpVerb ingressMethod);
 
     /** Same eager-load reasoning as {@link #findBySourceKeyAndKey} — used by the Spec 005 list endpoint. */
     @Query("select se from SourceEvent se join fetch se.source where se.source.key = :sourceKey")

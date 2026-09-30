@@ -12,6 +12,7 @@ interface Props {
   sourceKey?: string;
   sourceEventKey?: string;
   targetKey?: string;
+  targetEndpointKey?: string;
 }
 
 const CUSTOM = "__custom__";
@@ -30,7 +31,7 @@ const CUSTOM = "__custom__";
  * becomes a selection, not free text". Anything not yet registered still falls back to the same
  * free-text input as before ("Custom..." in the dropdown).
  */
-export function MappingBuilder({ value, onChange, sourceKey, sourceEventKey, targetKey }: Props) {
+export function MappingBuilder({ value, onChange, sourceKey, sourceEventKey, targetKey, targetEndpointKey }: Props) {
   const [rows, setRows] = useState<MappingRow[]>([]);
   const [advanced, setAdvanced] = useState(false);
   const [sourceFields, setSourceFields] = useState<SourceField[]>([]);
@@ -53,14 +54,14 @@ export function MappingBuilder({ value, onChange, sourceKey, sourceEventKey, tar
   }, [sourceKey, sourceEventKey]);
 
   useEffect(() => {
-    if (!targetKey) {
+    if (!targetKey || !targetEndpointKey) {
       setTargetFields([]);
       return;
     }
-    get<TargetField[]>(`/api/targets/${targetKey}/fields`)
+    get<TargetField[]>(`/api/targets/${targetKey}/endpoints/${targetEndpointKey}/fields`)
       .then((all) => setTargetFields(all.filter((f) => f.status === "ACTIVE")))
       .catch(() => setTargetFields([]));
-  }, [targetKey]);
+  }, [targetKey, targetEndpointKey]);
 
   function update(rows: MappingRow[]) {
     setRows(rows);

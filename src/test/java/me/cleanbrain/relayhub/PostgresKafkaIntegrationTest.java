@@ -115,18 +115,24 @@ class PostgresKafkaIntegrationTest {
         postJson(baseUrl + "/api/targets", ("""
                 {"key":"tc-target-b","name":"TC Target B","description":"Fails then recovers","baseUrl":"%s"}
                 """).formatted(wireMockServer.baseUrl()));
+        postJson(baseUrl + "/api/targets/tc-target-a/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook-a"}
+                """);
+        postJson(baseUrl + "/api/targets/tc-target-b/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook-b"}
+                """);
 
         postJson(baseUrl + "/api/subscriptions", """
                 {
                   "sourceKey":"tc-source","sourceEventKey":"customer-created","targetKey":"tc-target-a",
-                  "name":"Sub A","description":"Routes to A","targetMethod":"POST","targetPath":"/webhook-a",
+                  "targetEndpointKey":"webhook","name":"Sub A","description":"Routes to A",
                   "targetPayloadTemplate":"{\\"dealerId\\":\\"${$.customerNo}\\"}"
                 }
                 """);
         postJson(baseUrl + "/api/subscriptions", """
                 {
                   "sourceKey":"tc-source","sourceEventKey":"customer-created","targetKey":"tc-target-b",
-                  "name":"Sub B","description":"Routes to B","targetMethod":"POST","targetPath":"/webhook-b",
+                  "targetEndpointKey":"webhook","name":"Sub B","description":"Routes to B",
                   "targetPayloadTemplate":"{\\"dealerId\\":\\"${$.customerNo}\\"}"
                 }
                 """);

@@ -10,12 +10,17 @@ import java.util.UUID;
 
 public interface TargetFieldRepository extends JpaRepository<TargetField, UUID> {
 
-    /** Eagerly loads target — same open-in-view:false reasoning as SourceFieldRepository. */
-    @Query("select f from TargetField f join fetch f.target t where t.key = :targetKey order by f.key")
-    List<TargetField> findByTargetKey(@Param("targetKey") String targetKey);
+    /** Eagerly loads targetEndpoint (+ its target) — same open-in-view:false reasoning as
+     *  SourceFieldRepository. */
+    @Query("select f from TargetField f join fetch f.targetEndpoint te join fetch te.target t " +
+            "where t.key = :targetKey and te.key = :endpointKey order by f.key")
+    List<TargetField> findByTargetKeyAndEndpointKey(@Param("targetKey") String targetKey, @Param("endpointKey") String endpointKey);
 
-    @Query("select f from TargetField f join fetch f.target t where t.key = :targetKey and f.key = :fieldKey")
-    Optional<TargetField> findByTargetKeyAndFieldKey(@Param("targetKey") String targetKey, @Param("fieldKey") String fieldKey);
+    @Query("select f from TargetField f join fetch f.targetEndpoint te join fetch te.target t " +
+            "where t.key = :targetKey and te.key = :endpointKey and f.key = :fieldKey")
+    Optional<TargetField> findByTargetKeyAndEndpointKeyAndFieldKey(@Param("targetKey") String targetKey,
+                                                                     @Param("endpointKey") String endpointKey,
+                                                                     @Param("fieldKey") String fieldKey);
 
-    long countByTarget_Id(UUID targetId);
+    long countByTargetEndpoint_Id(UUID targetEndpointId);
 }

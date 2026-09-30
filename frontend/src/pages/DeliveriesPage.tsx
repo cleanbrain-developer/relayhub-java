@@ -90,16 +90,18 @@ export function DeliveriesPage() {
   }
 
   useEffect(() => {
-    // Attempts carry the real request/response bodies exchanged with a Target — admin-only (see
-    // SecurityConfig.java), unlike the rest of this page's public delivery summary.
-    if (!expandedId || !loggedIn) {
+    // Attempts carry the real request/response bodies exchanged with a Target — public, same as
+    // the rest of this page's delivery summary (SecurityConfig.java reopened this 2026-09-29:
+    // every attached Target today is a synthetic demo system, so there's nothing sensitive to
+    // gate; revisit if a real Target is ever connected).
+    if (!expandedId) {
       setAttempts([]);
       return;
     }
-    getAuthed<DeliveryAttempt[]>(`/api/deliveries/${expandedId}/attempts`)
+    get<DeliveryAttempt[]>(`/api/deliveries/${expandedId}/attempts`)
       .then(setAttempts)
       .catch((err) => setError((err as Error).message));
-  }, [expandedId, loggedIn]);
+  }, [expandedId]);
 
   function toggle(id: string) {
     setExpandedId(expandedId === id ? null : id);
@@ -236,11 +238,7 @@ export function DeliveriesPage() {
                   <td>{d.attemptCount}</td>
                   <td>{new Date(d.updatedAt).toLocaleString()}</td>
                   <td>
-                    {loggedIn ? (
-                      <button onClick={() => toggle(d.id)}>{expandedId === d.id ? "Hide" : "Attempts"}</button>
-                    ) : (
-                      <span className="muted">Log in to view attempts</span>
-                    )}
+                    <button onClick={() => toggle(d.id)}>{expandedId === d.id ? "Hide" : "Attempts"}</button>
                     {loggedIn && (
                       <button onClick={() => toggleEvent(d)}>{eventOpenId === d.id ? "Hide event" : "Source event"}</button>
                     )}
@@ -256,7 +254,7 @@ export function DeliveriesPage() {
                     </td>
                   </tr>
                 )}
-                {expandedId === d.id && loggedIn && (
+                {expandedId === d.id && (
                   <tr>
                     <td colSpan={5}>
                       <p className="muted" style={{ marginTop: 0 }}>

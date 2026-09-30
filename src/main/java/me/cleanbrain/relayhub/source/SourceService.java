@@ -1,6 +1,7 @@
 package me.cleanbrain.relayhub.source;
 
 import lombok.RequiredArgsConstructor;
+import me.cleanbrain.relayhub.common.AuthenticationType;
 import me.cleanbrain.relayhub.common.NotFoundException;
 import me.cleanbrain.relayhub.common.Status;
 import me.cleanbrain.relayhub.source.dto.SourceCreateRequest;
@@ -29,6 +30,7 @@ public class SourceService {
                 .key(request.key())
                 .name(request.name())
                 .description(request.description())
+                .authenticationType(request.authenticationType() != null ? request.authenticationType() : AuthenticationType.NONE)
                 .authenticationConfig(request.authenticationConfig())
                 .status(Status.ACTIVE)
                 .build();
@@ -49,6 +51,7 @@ public class SourceService {
         Source source = getByKey(key);
         source.setName(request.name());
         source.setDescription(request.description());
+        source.setAuthenticationType(request.authenticationType() != null ? request.authenticationType() : AuthenticationType.NONE);
         source.setAuthenticationConfig(request.authenticationConfig());
         return source;
     }

@@ -99,7 +99,7 @@ public class DeliveryService {
         Delivery delivery = deliveryRepository.saveAndFlush(Delivery.builder()
                 .eventId(event.getId())
                 .subscriptionId(subscription.getId())
-                .targetId(subscription.getTarget().getId())
+                .targetId(subscription.getTargetEndpoint().getTarget().getId())
                 .state(DeliveryState.PENDING)
                 .attemptCount(0)
                 .build());
@@ -161,12 +161,12 @@ public class DeliveryService {
     private void broadcastDlq(Subscription subscription) {
         liveActivityBroadcaster.broadcast(LiveEvent.dlq(
                 subscription.getSourceEvent().getSource().getKey(), subscription.getSourceEvent().getKey(),
-                subscription.getTarget().getKey()));
+                subscription.getTargetEndpoint().getTarget().getKey()));
     }
 
     private boolean attemptOnce(Delivery delivery, Subscription subscription, JsonNode sourcePayload, int attemptNumber, boolean isReplay) {
         JsonNode targetPayload = mappingService.map(sourcePayload, subscription.getTargetPayloadTemplate());
-        String url = subscription.getTarget().getBaseUrl() + subscription.getTargetPath();
+        String url = subscription.getTargetEndpoint().getTarget().getBaseUrl() + subscription.getTargetEndpoint().getPath();
         String requestBody = targetPayload.toString();
 
         DeliveryAttempt.DeliveryAttemptBuilder attempt = DeliveryAttempt.builder()
@@ -175,14 +175,14 @@ public class DeliveryService {
                 .subscriptionId(delivery.getSubscriptionId())
                 .targetId(delivery.getTargetId())
                 .attemptNumber(attemptNumber)
-                .requestMethod(subscription.getTargetMethod().name())
+                .requestMethod(subscription.getTargetEndpoint().getHttpMethod().name())
                 .requestUrl(url)
                 .requestBody(truncate(requestBody));
 
         boolean success;
         Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            String responseBody = restClient.method(subscription.getTargetMethod().toSpring())
+            String responseBody = restClient.method(subscription.getTargetEndpoint().getHttpMethod().toSpring())
                     .uri(url)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(targetPayload)
@@ -216,7 +216,7 @@ public class DeliveryService {
         DeliveryAttempt savedAttempt = deliveryAttemptRepository.save(attempt.build());
         liveActivityBroadcaster.broadcast(LiveEvent.delivery(
                 subscription.getSourceEvent().getSource().getKey(), subscription.getSourceEvent().getKey(),
-                subscription.getTarget().getKey(), success, isReplay, savedAttempt.getId()));
+                subscription.getTargetEndpoint().getTarget().getKey(), success, isReplay, savedAttempt.getId()));
 
         delivery.setAttemptCount(attemptNumber);
         return success;

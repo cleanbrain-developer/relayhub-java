@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import me.cleanbrain.relayhub.common.AuthenticationType;
 import me.cleanbrain.relayhub.common.Status;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -36,7 +37,12 @@ public class Source {
     @Column(nullable = false)
     private String description;
 
-    /** Free-form auth config (e.g. shared secret header name) — not modeled further in Phase 1. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private AuthenticationType authenticationType = AuthenticationType.NONE;
+
+    /** Free-form auth config (e.g. an API key value) — opaque, not decomposed by authenticationType. */
     private String authenticationConfig;
 
     @Enumerated(EnumType.STRING)

@@ -139,9 +139,12 @@ class AdminConsoleApiTest {
         admin.postForEntity(baseUrl + "/api/targets", new HttpEntity<>("""
                 {"key":"lazy-test-target","name":"Lazy Test Target","description":"x","baseUrl":"http://localhost:1"}
                 """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/targets/lazy-test-target/endpoints", new HttpEntity<>("""
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/x"}
+                """, headers), String.class);
         admin.postForEntity(baseUrl + "/api/subscriptions", new HttpEntity<>("""
                 {"sourceKey":"lazy-test-source","sourceEventKey":"created","targetKey":"lazy-test-target",
-                 "name":"Sub","description":"x","targetMethod":"POST","targetPath":"/x","targetPayloadTemplate":"{}"}
+                 "targetEndpointKey":"webhook","name":"Sub","description":"x","targetPayloadTemplate":"{}"}
                 """, headers), String.class);
 
         // Previously 500 (LazyInitializationException on sourceEvent.getSource()).
@@ -194,9 +197,12 @@ class AdminConsoleApiTest {
         admin.postForEntity(baseUrl + "/api/targets", new HttpEntity<>("""
                 {"key":"hard-delete-target","name":"Hard Delete Target","description":"x","baseUrl":"http://localhost:1"}
                 """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/targets/hard-delete-target/endpoints", new HttpEntity<>("""
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/x"}
+                """, headers), String.class);
         ResponseEntity<String> subCreate = admin.postForEntity(baseUrl + "/api/subscriptions", new HttpEntity<>("""
                 {"sourceKey":"hard-delete-source","sourceEventKey":"created","targetKey":"hard-delete-target",
-                 "name":"HD Sub","description":"x","targetMethod":"POST","targetPath":"/x","targetPayloadTemplate":"{}"}
+                 "targetEndpointKey":"webhook","name":"HD Sub","description":"x","targetPayloadTemplate":"{}"}
                 """, headers), String.class);
         String subId = objectMapper.readTree(subCreate.getBody()).get("id").asText();
 
@@ -205,10 +211,15 @@ class AdminConsoleApiTest {
                 baseUrl + "/api/sources/hard-delete-source?hard=true", HttpMethod.DELETE, null, String.class);
         assertThat(sourceBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
-        // Blocked: Source Event and Target still have a Subscription.
+        // Blocked: Source Event still has a Subscription; Target Endpoint still has a
+        // Subscription; Target still has a Target Endpoint.
         ResponseEntity<String> eventBlocked = admin.exchange(
                 baseUrl + "/api/sources/hard-delete-source/events/created?hard=true", HttpMethod.DELETE, null, String.class);
         assertThat(eventBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        ResponseEntity<String> endpointBlocked = admin.exchange(
+                baseUrl + "/api/targets/hard-delete-target/endpoints/webhook?hard=true", HttpMethod.DELETE, null, String.class);
+        assertThat(endpointBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
         ResponseEntity<String> targetBlocked = admin.exchange(
                 baseUrl + "/api/targets/hard-delete-target?hard=true", HttpMethod.DELETE, null, String.class);
@@ -221,12 +232,21 @@ class AdminConsoleApiTest {
         assertThat(restTemplate.getForEntity(baseUrl + "/api/subscriptions/" + subId, String.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
 
-        // Now the Source Event and Target are unblocked.
+        // Now the Source Event and Target Endpoint are unblocked.
         ResponseEntity<Void> eventDeleted = admin.exchange(
                 baseUrl + "/api/sources/hard-delete-source/events/created?hard=true", HttpMethod.DELETE, null, Void.class);
         assertThat(eventDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(restTemplate.getForEntity(baseUrl + "/api/sources/hard-delete-source/events/created", String.class)
                 .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Target itself is still blocked until its Target Endpoint is also removed.
+        ResponseEntity<String> targetStillBlocked = admin.exchange(
+                baseUrl + "/api/targets/hard-delete-target?hard=true", HttpMethod.DELETE, null, String.class);
+        assertThat(targetStillBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        ResponseEntity<Void> endpointDeleted = admin.exchange(
+                baseUrl + "/api/targets/hard-delete-target/endpoints/webhook?hard=true", HttpMethod.DELETE, null, Void.class);
+        assertThat(endpointDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
         ResponseEntity<Void> targetDeleted = admin.exchange(
                 baseUrl + "/api/targets/hard-delete-target?hard=true", HttpMethod.DELETE, null, Void.class);

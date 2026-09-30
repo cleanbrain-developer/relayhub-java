@@ -84,20 +84,24 @@ class DlqReplayIdempotencyTest {
         postJson(baseUrl + "/api/targets", ("""
                 {"key":"spec002-target-b","name":"Demo Target B","description":"Fails then recovers","baseUrl":"%s"}
                 """).formatted(wireMockServer.baseUrl()));
+        postJson(baseUrl + "/api/targets/spec002-target-a/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook-a"}
+                """);
+        postJson(baseUrl + "/api/targets/spec002-target-b/endpoints", """
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook-b"}
+                """);
 
         postJson(baseUrl + "/api/subscriptions", """
                 {
                   "sourceKey":"spec002-source","sourceEventKey":"customer-created","targetKey":"spec002-target-a",
-                  "name":"Sub A","description":"Routes to Target A",
-                  "targetMethod":"POST","targetPath":"/webhook-a",
+                  "targetEndpointKey":"webhook","name":"Sub A","description":"Routes to Target A",
                   "targetPayloadTemplate":"{\\"dealerId\\":\\"${$.customerNo}\\"}"
                 }
                 """);
         postJson(baseUrl + "/api/subscriptions", """
                 {
                   "sourceKey":"spec002-source","sourceEventKey":"customer-created","targetKey":"spec002-target-b",
-                  "name":"Sub B","description":"Routes to Target B",
-                  "targetMethod":"POST","targetPath":"/webhook-b",
+                  "targetEndpointKey":"webhook","name":"Sub B","description":"Routes to Target B",
                   "targetPayloadTemplate":"{\\"dealerId\\":\\"${$.customerNo}\\"}"
                 }
                 """);

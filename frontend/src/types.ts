@@ -4,12 +4,16 @@ export type Operation = "CREATED" | "REPLACED" | "PATCHED" | "DELETED";
 export type DeliveryState = "PENDING" | "SUCCEEDED" | "DEAD";
 export type DeliveryStatus = "SUCCESS" | "FAILED";
 export type FieldDataType = "STRING" | "NUMBER" | "BOOLEAN" | "OBJECT" | "ARRAY" | "DATE";
+/** Only NONE/API_KEY are functionally wired today — the rest are declared server-side for a later
+ *  stage. See AuthenticationType.java. */
+export type AuthenticationType = "NONE" | "API_KEY" | "HMAC" | "OAUTH2" | "BEARER_TOKEN" | "BASIC";
 
 export interface Source {
   id: string;
   key: string;
   name: string;
   description: string;
+  authenticationType: AuthenticationType;
   status: Status;
   createdAt: string;
 }
@@ -38,6 +42,20 @@ export interface Target {
   name: string;
   description: string;
   baseUrl: string;
+  authenticationType: AuthenticationType;
+  status: Status;
+}
+
+export interface TargetEndpoint {
+  id: string;
+  targetKey: string;
+  key: string;
+  name: string;
+  description: string;
+  httpMethod: HttpVerb;
+  path: string;
+  timeoutOverrideMs: number | null;
+  headers: string | null;
   status: Status;
 }
 
@@ -58,6 +76,7 @@ export interface SourceField {
 export interface TargetField {
   id: string;
   targetKey: string;
+  targetEndpointKey: string;
   key: string;
   dataType: FieldDataType;
   description: string | null;
@@ -72,12 +91,20 @@ export interface Subscription {
   sourceKey: string;
   sourceEventKey: string;
   targetKey: string;
+  targetEndpointKey: string;
   name: string;
   description: string;
   targetMethod: HttpVerb;
   targetPath: string;
   targetPayloadTemplate: string;
-  retryPolicy: string | null;
+  filterExpression: string | null;
+  maxAttempts: number | null;
+  effectiveMaxAttempts: number;
+  initialBackoffMs: number | null;
+  maxBackoffMs: number | null;
+  backoffMultiplier: number | null;
+  jitter: boolean | null;
+  timeoutMs: number | null;
   status: Status;
 }
 

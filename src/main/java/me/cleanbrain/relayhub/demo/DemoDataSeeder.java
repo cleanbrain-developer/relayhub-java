@@ -15,6 +15,8 @@ import me.cleanbrain.relayhub.subscription.SubscriptionService;
 import me.cleanbrain.relayhub.subscription.dto.SubscriptionCreateRequest;
 import me.cleanbrain.relayhub.target.TargetService;
 import me.cleanbrain.relayhub.target.dto.TargetCreateRequest;
+import me.cleanbrain.relayhub.targetendpoint.TargetEndpointService;
+import me.cleanbrain.relayhub.targetendpoint.dto.TargetEndpointCreateRequest;
 import me.cleanbrain.relayhub.targetfield.TargetFieldService;
 import me.cleanbrain.relayhub.targetfield.dto.TargetFieldCreateRequest;
 import org.slf4j.Logger;
@@ -25,21 +27,23 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
- * Idempotently registers a fixed demo scenario (Source/SourceEvents/Targets/Subscriptions) on
- * startup, only when the "demo" Spring profile is active. Exists so a developer-facing
- * observability dashboard has something to show without requiring manual registration first —
- * see https://github.com/cleanbrain-developer/relayhub-demo-systems, the separate simulator
- * service that (a) continuously generates flight-status events and posts them to RelayHub's
- * Ingress URLs and (b) implements demo-travelapp-vendor's random-failure behavior. RelayHub
- * itself has no traffic-generation or random-failure logic — that belongs to the external
- * systems being simulated, not to RelayHub.
+ * Idempotently registers a fixed demo scenario (Source/SourceEvents/Targets/TargetEndpoints/
+ * Subscriptions) on startup, only when the "demo" Spring profile is active. Exists so a developer-
+ * facing observability dashboard has something to show without requiring manual registration
+ * first — see https://github.com/cleanbrain-developer/relayhub-demo-systems, the separate
+ * simulator service that (a) continuously generates flight-status events and posts them to
+ * RelayHub's Ingress URLs and (b) implements demo-travelapp-vendor's random-failure behavior.
+ * RelayHub itself has no traffic-generation or random-failure logic — that belongs to the
+ * external systems being simulated, not to RelayHub.
  *
  * <p>Scenario: a simulated airline flight-status system (demo-flightstatus) emits a flight's
  * initial status (flight-created) and later status changes (flight-status-updated, e.g. gate
  * change, delay, boarding, departure). Two external systems subscribe: demo-airport-display
  * (an internal-feeling always-succeeding target that needs every field) and
  * demo-travelapp-vendor (a third-party travel app that only needs flight number + status, and
- * whose flaky API is the source of DLQ activity for the observability demo).
+ * whose flaky API is the source of DLQ activity for the observability demo). Each Target exposes
+ * exactly one "webhook" TargetEndpoint (domain-model overhaul, maintainer request 2026-09-30 —
+ * TargetEndpoint now carries the method+path a Subscription used to store inline).
  *
  * <p>Registration reuses the same REST-facing services (and their validation/idempotency rules)
  * that the HTTP API uses — this is not a separate direct-repository shortcut.
@@ -54,10 +58,12 @@ public class DemoDataSeeder implements CommandLineRunner {
     private static final String SOURCE_KEY = "demo-flightstatus";
     private static final String FLIGHT_CREATED = "flight-created";
     private static final String FLIGHT_STATUS_UPDATED = "flight-status-updated";
+    private static final String WEBHOOK_ENDPOINT_KEY = "webhook";
 
     private final SourceService sourceService;
     private final SourceEventService sourceEventService;
     private final TargetService targetService;
+    private final TargetEndpointService targetEndpointService;
     private final SubscriptionService subscriptionService;
     private final SourceFieldService sourceFieldService;
     private final TargetFieldService targetFieldService;
@@ -81,16 +87,18 @@ public class DemoDataSeeder implements CommandLineRunner {
 
         seedTarget("demo-airport-display", "Demo Airport Display", "Always succeeds — see relayhub-demo-systems");
         seedTarget("demo-travelapp-vendor", "Demo Travel App Vendor", "Randomly fails/times out — see relayhub-demo-systems");
+        seedTargetEndpoint("demo-airport-display", "Update Display", "Push a flight's current status to the display", "/targets/airport-display");
+        seedTargetEndpoint("demo-travelapp-vendor", "Notify Vendor", "Push a flight's current status to the vendor", "/targets/travelapp-vendor");
 
         // Spec 006 field registry (specs/006-field-registry/spec.md) — seeded here for the same
         // reason as everything else in this class: an operator opening the console for the first
         // time should see a working example of the feature, not an empty "No fields registered
-        // yet." on every demo Source Event/Target (maintainer question 2026-09-12: "왜 필드매핑이
-        // 아무것도 없지?" — the feature worked, it was just genuinely empty until someone filled it
-        // in by hand, which this now does). Field shapes match relayhub-demo-systems' actual wire
-        // payload exactly (see its relayhubClient.ts: {eventId, flightNo, status, gate,
-        // delayMinutes}) and its two mapping templates below (AIRPORT_DISPLAY_TEMPLATE needs all
-        // four flight fields, TRAVELAPP_VENDOR_TEMPLATE only flightNo/status).
+        // yet." on every demo Source Event/Target Endpoint (maintainer question 2026-09-12: "왜
+        // 필드매핑이 아무것도 없지?" — the feature worked, it was just genuinely empty until someone
+        // filled it in by hand, which this now does). Field shapes match relayhub-demo-systems'
+        // actual wire payload exactly (see its relayhubClient.ts: {eventId, flightNo, status,
+        // gate, delayMinutes}) and its two mapping templates below (AIRPORT_DISPLAY_TEMPLATE needs
+        // all four flight fields, TRAVELAPP_VENDOR_TEMPLATE only flightNo/status).
         seedFlightSourceFields(FLIGHT_CREATED);
         seedFlightSourceFields(FLIGHT_STATUS_UPDATED);
         seedTargetField("demo-airport-display", "flightNo", FieldDataType.STRING, "Flight number", "KE101", true);
@@ -100,10 +108,10 @@ public class DemoDataSeeder implements CommandLineRunner {
         seedTargetField("demo-travelapp-vendor", "flightNo", FieldDataType.STRING, "Flight number", "KE101", true);
         seedTargetField("demo-travelapp-vendor", "status", FieldDataType.STRING, "BOARDING/DELAYED/DEPARTED/CANCELLED", "BOARDING", true);
 
-        seedSubscription(FLIGHT_CREATED, "demo-airport-display", "/targets/airport-display", AIRPORT_DISPLAY_TEMPLATE);
-        seedSubscription(FLIGHT_CREATED, "demo-travelapp-vendor", "/targets/travelapp-vendor", TRAVELAPP_VENDOR_TEMPLATE);
-        seedSubscription(FLIGHT_STATUS_UPDATED, "demo-airport-display", "/targets/airport-display", AIRPORT_DISPLAY_TEMPLATE);
-        seedSubscription(FLIGHT_STATUS_UPDATED, "demo-travelapp-vendor", "/targets/travelapp-vendor", TRAVELAPP_VENDOR_TEMPLATE);
+        seedSubscription(FLIGHT_CREATED, "demo-airport-display", AIRPORT_DISPLAY_TEMPLATE);
+        seedSubscription(FLIGHT_CREATED, "demo-travelapp-vendor", TRAVELAPP_VENDOR_TEMPLATE);
+        seedSubscription(FLIGHT_STATUS_UPDATED, "demo-airport-display", AIRPORT_DISPLAY_TEMPLATE);
+        seedSubscription(FLIGHT_STATUS_UPDATED, "demo-travelapp-vendor", TRAVELAPP_VENDOR_TEMPLATE);
 
         log.info("Demo data seeding complete");
     }
@@ -112,7 +120,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         try {
             sourceService.getByKey(key);
         } catch (NotFoundException e) {
-            sourceService.create(new SourceCreateRequest(key, name, description, null));
+            sourceService.create(new SourceCreateRequest(key, name, description, null, null));
             log.info("Seeded Source '{}'", key);
         }
     }
@@ -132,8 +140,18 @@ public class DemoDataSeeder implements CommandLineRunner {
         try {
             targetService.getByKey(key);
         } catch (NotFoundException e) {
-            targetService.create(new TargetCreateRequest(key, name, description, simulatorBaseUrl, null));
+            targetService.create(new TargetCreateRequest(key, name, description, simulatorBaseUrl, null, null));
             log.info("Seeded Target '{}'", key);
+        }
+    }
+
+    private void seedTargetEndpoint(String targetKey, String name, String description, String path) {
+        try {
+            targetEndpointService.getByTargetKeyAndKey(targetKey, WEBHOOK_ENDPOINT_KEY);
+        } catch (NotFoundException e) {
+            targetEndpointService.create(targetKey,
+                    new TargetEndpointCreateRequest(WEBHOOK_ENDPOINT_KEY, name, description, HttpVerb.POST, path, null, null));
+            log.info("Seeded Target Endpoint '{}/{}'", targetKey, WEBHOOK_ENDPOINT_KEY);
         }
     }
 
@@ -163,15 +181,15 @@ public class DemoDataSeeder implements CommandLineRunner {
     private void seedTargetField(String targetKey, String fieldKey, FieldDataType dataType,
                                   String description, String exampleValue, boolean required) {
         try {
-            targetFieldService.getByTargetKeyAndFieldKey(targetKey, fieldKey);
+            targetFieldService.getByTargetKeyAndEndpointKeyAndFieldKey(targetKey, WEBHOOK_ENDPOINT_KEY, fieldKey);
         } catch (NotFoundException e) {
-            targetFieldService.create(targetKey,
+            targetFieldService.create(targetKey, WEBHOOK_ENDPOINT_KEY,
                     new TargetFieldCreateRequest(fieldKey, dataType, description, exampleValue, required, false));
-            log.info("Seeded Target Field '{}/{}'", targetKey, fieldKey);
+            log.info("Seeded Target Field '{}/{}/{}'", targetKey, WEBHOOK_ENDPOINT_KEY, fieldKey);
         }
     }
 
-    private void seedSubscription(String eventKey, String targetKey, String targetPath, String template) {
+    private void seedSubscription(String eventKey, String targetKey, String template) {
         String name = "%s -> %s".formatted(eventKey, targetKey);
         // No direct "exists" lookup for Subscriptions (unlike Source/Target/SourceEvent, they have
         // no unique business key) — create() itself isn't guarded against duplicates on repeated
@@ -185,8 +203,8 @@ public class DemoDataSeeder implements CommandLineRunner {
             return;
         }
         subscriptionService.create(new SubscriptionCreateRequest(
-                SOURCE_KEY, eventKey, targetKey, name,
-                "Demo subscription: " + name, HttpVerb.POST, targetPath, template, null));
+                SOURCE_KEY, eventKey, targetKey, WEBHOOK_ENDPOINT_KEY, name,
+                "Demo subscription: " + name, template, null, null, null, null, null, null, null));
         log.info("Seeded Subscription '{}'", name);
     }
 }

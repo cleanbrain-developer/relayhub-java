@@ -53,6 +53,9 @@ class FieldRegistryApiTest {
         admin.postForEntity(baseUrl + "/api/targets", new HttpEntity<>("""
                 {"key":"field-test-target","name":"Field Test Target","description":"x","baseUrl":"http://localhost:1"}
                 """, headers), String.class);
+        admin.postForEntity(baseUrl + "/api/targets/field-test-target/endpoints", new HttpEntity<>("""
+                {"key":"webhook","name":"Webhook","description":"x","httpMethod":"POST","path":"/webhook"}
+                """, headers), String.class);
 
         // Create requires auth.
         String sourceFieldBody = """
@@ -104,9 +107,11 @@ class FieldRegistryApiTest {
                  "required":true,"sensitive":false}
                 """;
         ResponseEntity<String> targetFieldCreated = admin.postForEntity(
-                baseUrl + "/api/targets/field-test-target/fields", new HttpEntity<>(targetFieldBody, headers), String.class);
+                baseUrl + "/api/targets/field-test-target/endpoints/webhook/fields", new HttpEntity<>(targetFieldBody, headers), String.class);
         assertThat(targetFieldCreated.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(objectMapper.readTree(targetFieldCreated.getBody()).get("targetKey").asText()).isEqualTo("field-test-target");
+        JsonNode targetFieldJson = objectMapper.readTree(targetFieldCreated.getBody());
+        assertThat(targetFieldJson.get("targetKey").asText()).isEqualTo("field-test-target");
+        assertThat(targetFieldJson.get("targetEndpointKey").asText()).isEqualTo("webhook");
 
         // List/get are public.
         ResponseEntity<String> sourceFieldList = restTemplate.getForEntity(
@@ -115,7 +120,7 @@ class FieldRegistryApiTest {
         assertThat(sourceFieldList.getBody()).contains("customerNo");
 
         ResponseEntity<String> targetFieldList = restTemplate.getForEntity(
-                baseUrl + "/api/targets/field-test-target/fields", String.class);
+                baseUrl + "/api/targets/field-test-target/endpoints/webhook/fields", String.class);
         assertThat(targetFieldList.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(targetFieldList.getBody()).contains("dealerId");
 
@@ -132,11 +137,16 @@ class FieldRegistryApiTest {
         assertThat(updatedJson.get("jsonPath").asText()).isEqualTo("$.customer.number");
         assertThat(updatedJson.get("sensitive").asBoolean()).isTrue();
 
-        // Hard-deleting the owning SourceEvent/Target is blocked while a field is still registered.
+        // Hard-deleting the owning SourceEvent/Target Endpoint is blocked while a field is still registered.
         ResponseEntity<String> eventBlocked = admin.exchange(
                 baseUrl + "/api/sources/field-test-source/events/created?hard=true", HttpMethod.DELETE, null, String.class);
         assertThat(eventBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
 
+        ResponseEntity<String> endpointBlocked = admin.exchange(
+                baseUrl + "/api/targets/field-test-target/endpoints/webhook?hard=true", HttpMethod.DELETE, null, String.class);
+        assertThat(endpointBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        // Target itself is blocked while its Target Endpoint still exists, regardless of fields.
         ResponseEntity<String> targetBlocked = admin.exchange(
                 baseUrl + "/api/targets/field-test-target?hard=true", HttpMethod.DELETE, null, String.class);
         assertThat(targetBlocked.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
@@ -151,13 +161,17 @@ class FieldRegistryApiTest {
                 .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 
         ResponseEntity<Void> targetFieldDeleted = admin.exchange(
-                baseUrl + "/api/targets/field-test-target/fields/dealerId?hard=true", HttpMethod.DELETE, null, Void.class);
+                baseUrl + "/api/targets/field-test-target/endpoints/webhook/fields/dealerId?hard=true", HttpMethod.DELETE, null, Void.class);
         assertThat(targetFieldDeleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(restTemplate.getForEntity(baseUrl + "/api/targets/field-test-target/fields/dealerId", String.class)
+        assertThat(restTemplate.getForEntity(baseUrl + "/api/targets/field-test-target/endpoints/webhook/fields/dealerId", String.class)
                 .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 
-        // Now the SourceEvent/Target hard-delete is unblocked.
+        // Now the SourceEvent hard-delete is unblocked; the Target Endpoint's field is gone but the
+        // endpoint itself (and thus the Target) is still blocked until the endpoint is also removed.
         assertThat(admin.exchange(baseUrl + "/api/sources/field-test-source/events/created?hard=true",
+                HttpMethod.DELETE, null, Void.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        assertThat(admin.exchange(baseUrl + "/api/targets/field-test-target/endpoints/webhook?hard=true",
                 HttpMethod.DELETE, null, Void.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(admin.exchange(baseUrl + "/api/targets/field-test-target?hard=true",
                 HttpMethod.DELETE, null, Void.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);

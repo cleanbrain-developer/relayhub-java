@@ -22,22 +22,26 @@ public class SubscriptionController {
     @PostMapping
     public ResponseEntity<SubscriptionResponse> create(@Valid @RequestBody SubscriptionCreateRequest request) {
         Subscription created = subscriptionService.create(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(SubscriptionResponse.from(created));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
     @GetMapping
     public List<SubscriptionResponse> list() {
-        return subscriptionService.findAll().stream().map(SubscriptionResponse::from).toList();
+        return subscriptionService.findAll().stream().map(this::toResponse).toList();
     }
 
     @GetMapping("/{id}")
     public SubscriptionResponse getById(@PathVariable UUID id) {
-        return SubscriptionResponse.from(subscriptionService.getById(id));
+        return toResponse(subscriptionService.getById(id));
     }
 
     @PutMapping("/{id}")
     public SubscriptionResponse update(@PathVariable UUID id, @Valid @RequestBody SubscriptionUpdateRequest request) {
-        return SubscriptionResponse.from(subscriptionService.update(id, request));
+        return toResponse(subscriptionService.update(id, request));
+    }
+
+    private SubscriptionResponse toResponse(Subscription subscription) {
+        return SubscriptionResponse.from(subscription, subscriptionService.resolveEffectiveMaxAttempts(subscription));
     }
 
     /** ?hard=true permanently deletes the row instead of the default soft delete (deactivate). */
