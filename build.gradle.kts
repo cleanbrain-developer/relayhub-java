@@ -50,7 +50,7 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("com.h2database:h2")
-    testImplementation("org.wiremock:wiremock-standalone:3.9.2")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.2")
     testImplementation("org.awaitility:awaitility:4.2.2")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
