@@ -124,8 +124,22 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/events/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .requestMatchers("/ingress/v1/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
+                        // GET-scoped, not a bare "/actuator/**" permitAll (self-review finding,
+                        // 2026-10-02): only health/prometheus/metrics are exposed today
+                        // (management.endpoints.web.exposure.include), all GET-only reads, so this
+                        // was never reachable in practice — but explicit here rather than relying
+                        // on it. If a sibling service copies this config and later widens actuator
+                        // exposure to something with a write operation (e.g. /actuator/loggers),
+                        // this rule staying GET-scoped means that write still needs its own
+                        // deliberate rule, not an accidental free pass from this one.
+                        .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
                         .requestMatchers("/api/**").hasRole("ADMIN")
+                        // This is the real default posture, not the GET-scoped rule above: every
+                        // request this filter chain hasn't already matched a more specific rule for
+                        // (including any non-GET /actuator/** or /ingress/v1/** path) is public —
+                        // "public unless specifically gated", not "gated unless specifically
+                        // public". A sibling service that needs the opposite default should replace
+                        // this with .anyRequest().authenticated() (or .denyAll()), not just copy it.
                         .anyRequest().permitAll())
                 .httpBasic(Customizer.withDefaults());
         return http.build();

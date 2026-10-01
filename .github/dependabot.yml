@@ -1,0 +1,28 @@
+# Automated dependency-update PRs (self-review finding, 2026-10-02: this repository had none).
+# Weekly, not daily — low-traffic personal project, no need for tighter polling. Each ecosystem
+# opens its own PRs; CI (ci.yml) gates them the same as any other PR to main before merge.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
