@@ -2,7 +2,7 @@
 
 This document describes RelayHub's own system boundaries, domain modules, data flow, and delivery pipeline. Sourced directly from the accepted RelayHub design context (2026-09-10, see `docs/decisions/ADR-0002-java-spring-boot-stack.md` for the stack decision this design assumes).
 
-> **The "Registration model" table below is the original MVP-era shape and is now out of date** for `Subscription`/`Target` — the integration-platform domain-model overhaul (2026-09-30) introduced `TargetEndpoint`, `AuthenticationType`, and per-Subscription delivery-policy overrides. See [`domain-model.md`](domain-model.md) for the current entity model, Mermaid diagrams, and the Delivery/DLQ/Replay state machine. The rest of this document (data flow, mapping strategy, module boundaries, stack) remains accurate.
+> **The "Registration model" table below is the original MVP-era shape and is now out of date** for `Subscription`/`Target` — the integration-platform domain-model overhaul (2026-09-30) introduced `TargetEndpoint`, `AuthenticationType`, and per-Subscription delivery-policy overrides. See [`domain-model.md`](domain-model.md) for the current entity model, Mermaid diagrams, and the Delivery/DLQ/Replay state machine. The core data flow and mapping strategy below remain accurate; the "Recommended domain modules" list and two "Technology stack" entries have their own correction notes further down (self-review finding, 2026-10-02).
 
 ## Core data flow
 
@@ -129,6 +129,8 @@ common
 
 No premature microservice split. Splitting is only justified once distribution needs are proven, not assumed.
 
+> **This list is the original pre-implementation plan and is now out of date** (self-review finding, 2026-10-02) — the real package layout under `src/main/java/me/cleanbrain/relayhub/` is `source`, `sourceevent`, `sourcefield`, `target`, `targetendpoint`, `targetfield`, `subscription`, `ingress`, `event`, `delivery`, `deliverysettings`, `mapping`, `outbox`, `auth`, `security`, `retention`, `demo`, `metrics`, `live`, `common`. `replay` never became its own package (folded into `delivery` — `DeliveryService.replay`/`DlqAutoReplayScheduler`); `observability` likewise split into `metrics` (Prometheus/Grafana) and `live` (the SSE activity stream). The core principle this section states — package-by-domain-concept, no premature microservice split — still holds; only the specific list drifted.
+
 ## Technology stack
 
 See `docs/decisions/ADR-0002-java-spring-boot-stack.md` for the decision and its rationale.
@@ -145,6 +147,8 @@ Test                   JUnit 5 / Testcontainers
 Observability          Micrometer / OpenTelemetry / Prometheus / Grafana
 Local runtime          Docker Compose
 ```
+
+> **Two entries above never actually happened** (self-review finding, 2026-10-02): **Redis** was never added — nothing in this codebase uses it; every stateful concern is PostgreSQL (`db/migration/`) or in-memory (`LiveActivityBroadcaster`'s SSE emitters). **Resilience4j** was evaluated for the non-blocking retry engine (Stage 2 of the integration-platform overhaul, 2026-09-30) and deliberately replaced with a hand-rolled, DB-persisted `DeliveryRetryScheduler` instead — see `domain-model.md`'s "Event delivery flow" for what actually ships. **Contract: OpenAPI / JSON Schema**, by contrast, is accurate as of the same self-review (`springdoc-openapi`, see `docs/architecture/api-contract.md`) — it just took until 2026-10-02 to actually be true. Every other row remains accurate.
 
 Kotlin may be selectively adopted later for small connectors/extensions; the core stays Java.
 

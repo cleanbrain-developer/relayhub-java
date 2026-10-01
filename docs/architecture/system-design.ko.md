@@ -4,7 +4,7 @@
 
 이 문서는 RelayHub 고유의 system boundary, domain module, data flow, delivery pipeline을 설명합니다. accepted RelayHub design context(2026-09-10)에서 직접 가져왔습니다(이 design이 전제하는 stack decision은 `docs/decisions/ADR-0002-java-spring-boot-stack.md` 참고).
 
-> **아래 "Registration model" 표는 원래 MVP 시절 구조이며 `Subscription`/`Target` 부분은 현재 최신이 아닙니다** — integration-platform domain-model overhaul(2026-09-30)에서 `TargetEndpoint`, `AuthenticationType`, Subscription별 delivery-policy override가 도입됐습니다. 현재 entity model, Mermaid 다이어그램, Delivery/DLQ/Replay state machine은 [`domain-model.ko.md`](domain-model.ko.md) 참고. 이 문서의 나머지 부분(data flow, mapping strategy, module boundary, stack)은 여전히 정확합니다.
+> **아래 "Registration model" 표는 원래 MVP 시절 구조이며 `Subscription`/`Target` 부분은 현재 최신이 아닙니다** — integration-platform domain-model overhaul(2026-09-30)에서 `TargetEndpoint`, `AuthenticationType`, Subscription별 delivery-policy override가 도입됐습니다. 현재 entity model, Mermaid 다이어그램, Delivery/DLQ/Replay state machine은 [`domain-model.ko.md`](domain-model.ko.md) 참고. 아래 core data flow와 mapping strategy는 여전히 정확합니다; "Recommended domain modules" 목록과 "Technology stack" 표의 항목 2개는 더 아래에 각자 수정 note가 있습니다(자체 점검 발견 사항, 2026-10-02).
 
 ## Core data flow
 
@@ -131,6 +131,8 @@ common
 
 premature한 microservice 분리는 없습니다. 분리는 distribution 필요성이 입증된 이후에만 정당화되며, 가정만으로는 안 됩니다.
 
+> **이 목록은 구현 전 원래 계획이며 지금은 최신이 아닙니다** (자체 점검 발견 사항, 2026-10-02) — `src/main/java/me/cleanbrain/relayhub/` 아래 실제 패키지 구조는 `source`, `sourceevent`, `sourcefield`, `target`, `targetendpoint`, `targetfield`, `subscription`, `ingress`, `event`, `delivery`, `deliverysettings`, `mapping`, `outbox`, `auth`, `security`, `retention`, `demo`, `metrics`, `live`, `common`입니다. `replay`는 별도 패키지가 되지 않고 `delivery`에 흡수됐습니다(`DeliveryService.replay`/`DlqAutoReplayScheduler`); `observability`도 마찬가지로 `metrics`(Prometheus/Grafana)와 `live`(SSE activity stream)로 나뉘었습니다. 이 섹션이 말하는 핵심 원칙 — domain concept 단위 패키지화, premature microservice 분리 없음 — 은 여전히 유효합니다; 구체적인 목록만 어긋났을 뿐입니다.
+
 ## Technology stack
 
 decision과 그 rationale은 `docs/decisions/ADR-0002-java-spring-boot-stack.md`를 참고하세요.
@@ -147,6 +149,8 @@ Test                   JUnit 5 / Testcontainers
 Observability          Micrometer / OpenTelemetry / Prometheus / Grafana
 Local runtime          Docker Compose
 ```
+
+> **위 항목 중 2개는 실제로 일어난 적이 없습니다** (자체 점검 발견 사항, 2026-10-02): **Redis**는 한 번도 추가된 적이 없습니다 — 이 코드베이스의 모든 stateful 관심사는 PostgreSQL(`db/migration/`) 아니면 in-memory(`LiveActivityBroadcaster`의 SSE emitter)입니다. **Resilience4j**는 비차단 재시도 엔진(integration-platform overhaul의 Stage 2, 2026-09-30)용으로 검토됐지만 직접 만든, DB에 영속화되는 `DeliveryRetryScheduler`로 의도적으로 대체됐습니다 — 실제로 뭐가 배포되는지는 `domain-model.ko.md`의 "Event delivery flow" 참고. 반대로 **Contract: OpenAPI / JSON Schema**는 이번 자체 점검 기준으로 이제 정확합니다(`springdoc-openapi`, `docs/architecture/api-contract.ko.md` 참고) — 2026-10-02가 돼서야 사실이 된 것뿐입니다. 나머지 모든 행은 여전히 정확합니다.
 
 Kotlin은 나중에 작은 connector/extension에 선택적으로 채택될 수 있으며, core는 Java로 유지됩니다.
 

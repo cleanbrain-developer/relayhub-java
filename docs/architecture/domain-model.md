@@ -271,3 +271,7 @@ Backoff is exponential (`initialBackoffMs * backoffMultiplier^(attemptNumber-1)`
   Stage 3 fixed a real bug here: `SourceService.update`/`TargetService.update` used to overwrite the
   stored secret unconditionally, so saving the edit form with the (always-blank) field untouched
   silently cleared a working secret; blank/null now leaves the existing value alone.
+- **No rate limiting on `/ingress/v1/**`** for a Source with `authenticationType=NONE` — a
+  deliberate, documented deferral, not an oversight. See
+  `docs/decisions/ADR-0006-no-ingress-rate-limiting.md` for the full reasoning and the trigger for
+  revisiting it (a real, non-demo Source being connected).

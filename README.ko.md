@@ -19,6 +19,7 @@ Event-driven data integration platform입니다. RelayHub는 Source system으로
 | Architecture: structure, system design | [`docs/architecture/`](docs/architecture/) |
 | Architecture: 현재 domain model (entity, delivery flow, Delivery/DLQ/Replay 상태) | [`docs/architecture/domain-model.ko.md`](docs/architecture/domain-model.ko.md) |
 | API contract (OpenAPI, generated — static 파일 아님, 문서 참고) | [`docs/architecture/api-contract.ko.md`](docs/architecture/api-contract.ko.md) |
+| `relayhub-<lang>` sibling을 위한 포팅 가이드 (그대로 복제할 것 vs 그 언어답게 포팅할 것) | [`docs/architecture/porting-guide.ko.md`](docs/architecture/porting-guide.ko.md) |
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
 | Durable engineering principles | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |
