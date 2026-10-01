@@ -1,6 +1,8 @@
 name: CI
 
-# test runs on every push/PR to main. build-and-push and deploy are the CI/CD bridge to the
+# test and frontend-test run on every push/PR to main (backend and frontend verification are
+# fully independent jobs, so one's failure doesn't hide whether the other would also have failed).
+# build-and-push and deploy are the CI/CD bridge to the
 # single Hetzner K3s server (same interim-before-ArgoCD model as english-core-speaking/
 # cleanbrain-me-entrance) and only run on an actual push to main — never for a PR, and
 # `deploy` additionally gates on ENABLE_PRODUCTION_DEPLOY so a push before the cluster
@@ -67,8 +69,38 @@ jobs:
           path: build/reports/tests/test/
           retention-days: 14
 
+  frontend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # tsc --noEmit + vite build (see frontend/package.json) — the console's only type-check gate.
+      # Self-review finding (2026-10-02): before this job existed, neither CI nor the Dockerfile's
+      # own frontend build step ran `tsc --noEmit` (the Dockerfile called `vite build` directly,
+      # which only transpiles via esbuild and does not type-check) — a real type error could reach
+      # production. See the Dockerfile's own comment on its now-fixed build step.
+      - name: Type-check and build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
   build-and-push:
-    needs: test
+    needs: [test, frontend-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

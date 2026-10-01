@@ -34,6 +34,13 @@ dependencies {
     implementation("com.jayway.jsonpath:json-path:2.9.0")
     implementation("com.networknt:json-schema-validator:1.5.1")
 
+    // Generates the OpenAPI 3 contract from the existing @RestController/record-DTO surface at
+    // runtime (GET /v3/api-docs, browsable at /swagger-ui.html) — self-review finding, 2026-10-02:
+    // system-design.md's stack table always said "Contract: OpenAPI / JSON Schema" but this was
+    // never actually added, leaving no machine-checkable API contract for a Node/Go sibling
+    // implementation to replicate against. See docs/architecture/api-contract.md.
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+
     runtimeOnly("org.postgresql:postgresql")
 
     compileOnly("org.projectlombok:lombok")

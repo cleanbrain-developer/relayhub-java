@@ -16,6 +16,7 @@ The original design roadmap is fully built: the vertical slice, the Reliability 
 | Product: problem, users, goals, scope | [`docs/product/`](docs/product/) |
 | Architecture: structure, system design | [`docs/architecture/`](docs/architecture/) |
 | Architecture: current domain model (entities, delivery flow, Delivery/DLQ/Replay states) | [`docs/architecture/domain-model.md`](docs/architecture/domain-model.md) |
+| API contract (OpenAPI, generated — not a static file, see the doc) | [`docs/architecture/api-contract.md`](docs/architecture/api-contract.md) |
 | Accepted decisions | [`docs/decisions/`](docs/decisions/) |
 | Current phase and next work | [`docs/status/current-state.md`](docs/status/current-state.md) |
 | Durable engineering principles | [`.specify/memory/constitution.md`](.specify/memory/constitution.md) |

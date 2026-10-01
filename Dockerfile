@@ -3,10 +3,16 @@ WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend .
-# Writes straight into ../src/main/resources/static (see frontend/vite.config.ts) — but that
-# path doesn't exist yet in this stage (frontend/ was copied standalone, not alongside src/), so
-# build into a local dist/ here instead and copy it into the Java build stage explicitly below.
-RUN npx vite build --outDir dist
+# npm run build (not a bare `npx vite build`): the build script is `tsc --noEmit && vite build`
+# (see frontend/package.json) — a plain `vite build` only transpiles via esbuild and does not
+# type-check, so a real type error would have silently produced a working Docker image before
+# this fix (self-review finding, 2026-10-02: CI's own `test` job never ran anything
+# frontend-related either — see the new ci.yml `frontend-test` job). `-- --outDir dist` forwards
+# past the `&&` to vite build specifically: this stage's build context doesn't have frontend/ and
+# src/ side by side the way the repo checkout does, so it can't write straight into
+# ../src/main/resources/static (vite.config.ts's configured outDir for local dev) and instead
+# builds into a local dist/ here, copied into the Java build stage explicitly below.
+RUN npm run build -- --outDir dist
 
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app

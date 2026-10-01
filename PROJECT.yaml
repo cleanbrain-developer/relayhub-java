@@ -40,18 +40,22 @@ principles:
   - modular-monolith-before-distribution
 
 current_phase:
-  id: phase-5-console-iteration
+  id: phase-6-integration-platform-overhaul
   status: active
   goal: >-
     The original design roadmap (Specs 001-004) and the demo-observability
     extension are built, verified, and live at
-    relayhub-java.developer.cleanbrain.me. Since then the admin console
-    (Spec 005) has kept growing through sustained maintainer-driven
-    iteration, not maintenance: Spec 006 (Source/Target field registry,
-    wired into the Subscription mapping UI), a real-time SSE topology view
-    with a DLQ node and an automatic DLQ-replay scheduler, admin hard
-    delete, a dark theme, and several rounds of visual polish on the Live
-    page. See docs/status/current-state.md for the current detailed list.
+    relayhub-java.developer.cleanbrain.me. The admin console (Spec 005) grew
+    through sustained maintainer-driven iteration (Spec 006 field registry,
+    SSE topology view, admin hard delete, dark theme — see
+    docs/status/current-state.md's "phase-5-console-iteration" history), then
+    the integration-platform domain-model overhaul (2026-09-30) split
+    per-endpoint Target contracts out of the flat original model, replaced
+    the blocking retry loop with a non-blocking scheduled one, reworked the
+    admin console into a List -> Detail IA, and added field-registry
+    validation + real API_KEY authentication. See
+    docs/architecture/domain-model.md for the current entity model and
+    docs/status/current-state.md for the current detailed, dated list.
 
 standards:
   agents_md: AGENTS.md
