@@ -271,6 +271,10 @@ export function LivePage() {
         addLoadError("Delivery summary");
       });
     fetchDlqSchedule();
+    // Mount-only by design; fetchDlqSchedule is a plain (non-useCallback) function recreated every
+    // render, not a stable dependency — including it would re-run this effect every render instead
+    // of once, which it doesn't capture any changing state to need anyway.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function fetchDlqSchedule() {
@@ -316,6 +320,9 @@ export function LivePage() {
       }
     }, 1000);
     return () => window.clearInterval(tick);
+    // fetchDlqSchedule is intentionally excluded — see the mount-only effect above for why (same
+    // plain-function-recreated-every-render reasoning; this effect's real trigger is dlqNextRunAt).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dlqNextRunAt]);
 
   useEffect(() => {
@@ -547,6 +554,10 @@ export function LivePage() {
       source.close();
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
+    // scheduleDlqRefetch/spawnPulse intentionally excluded, same reasoning as the effects above —
+    // both are plain functions recreated every render; including them would tear down and
+    // reopen this SSE connection on every render instead of only when the topology layout changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourcePositions, eventPositions, targetPositions, hub, dlqPos]);
 
   return (

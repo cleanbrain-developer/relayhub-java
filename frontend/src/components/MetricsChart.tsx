@@ -43,7 +43,7 @@ export function MetricsChart({ title, query, seriesLabel, rangeMinutes = 60, ste
       cancelled = true;
       clearInterval(interval);
     };
-  }, [query, rangeMinutes, stepSeconds]);
+  }, [query, rangeMinutes, stepSeconds, seriesLabel]);
 
   return (
     <div className="chart-card">

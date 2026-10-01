@@ -88,6 +88,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ESLint (self-review finding, 2026-10-02: no lint tooling existed at all before this).
+      # Warnings (react-hooks/exhaustive-deps false positives already documented inline,
+      # react-refresh's Provider+hook co-export nit) don't fail the build — only errors do, same as
+      # `eslint .`'s own default exit-code behavior.
+      - name: Lint
+        run: npm run lint
+
       # tsc --noEmit + vite build (see frontend/package.json) — the console's only type-check gate.
       # Self-review finding (2026-10-02): before this job existed, neither CI nor the Dockerfile's
       # own frontend build step ran `tsc --noEmit` (the Dockerfile called `vite build` directly,
