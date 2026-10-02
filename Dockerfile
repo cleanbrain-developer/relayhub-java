@@ -14,7 +14,7 @@ COPY frontend .
 # builds into a local dist/ here, copied into the Java build stage explicitly below.
 RUN npm run build -- --outDir dist
 
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /app
 
 # Dependency layer cached separately from source so a source-only change doesn't
@@ -31,7 +31,7 @@ COPY src src
 COPY --from=frontend-build /frontend/dist src/main/resources/static
 RUN ./gradlew --no-daemon bootJar -x test
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 RUN addgroup -S relayhub && adduser -S relayhub -G relayhub
 COPY --from=build /app/build/libs/*.jar app.jar
