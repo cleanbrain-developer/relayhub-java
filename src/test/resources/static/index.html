@@ -1,0 +1,13 @@
+<!doctype html>
+<!--
+  Test-only fixture, not the real built frontend — the "test" Gradle task never builds
+  frontend/ (that's a separate CI job, frontend-test, and the Docker image build; see
+  SpaControllerTest's own Javadoc). SpaControllerTest only needs to verify that SpaController's
+  forward:/index.html target actually resolves to *something* for every client-side route, not
+  that it's the real bundled SPA — this minimal stand-in keeps that test independent of whether
+  `npm run build` happens to have been run locally beforehand.
+-->
+<html lang="en">
+  <head><title>RelayHub Console (test fixture)</title></head>
+  <body><div id="root"></div></body>
+</html>

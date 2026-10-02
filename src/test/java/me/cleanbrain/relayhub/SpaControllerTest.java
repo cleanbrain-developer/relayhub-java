@@ -22,6 +22,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * detail pages had 404'd in production ever since — every verification of that stage only ever
  * navigated there via an in-app client-side {@code <Link>} click, which never hits the server for
  * that URL at all.
+ *
+ * <p>Relies on {@code src/test/resources/static/index.html}, a minimal test-only fixture — not
+ * the real built frontend. The {@code test} Gradle task never runs {@code npm run build} (that's
+ * the separate {@code frontend-test} CI job and the Docker image build), so this test originally
+ * failed in CI despite passing locally: locally it happened to pass only because a real build had
+ * already populated {@code src/main/resources/static/} from an earlier, unrelated local `npm run
+ * build` run, which a fresh CI checkout never has. The fixture makes this test's result
+ * independent of whether that local build artifact happens to exist.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @EmbeddedKafka(partitions = 1, topics = "relayhub.delivery-tasks")
