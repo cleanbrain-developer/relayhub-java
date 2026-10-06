@@ -23,6 +23,19 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
     List<Delivery> findTop200ByStateOrderByUpdatedAtDesc(DeliveryState state);
 
+    // Target/Subscription filters for the Deliveries console (scale-out readiness review,
+    // 2026-10-06 finding: the state filter was the only one, so an operator chasing "why does
+    // Target X keep failing" had to scroll the unfiltered top-200 list by eye). subscriptionId
+    // takes precedence over targetId when both are given (DeliveryController), since a
+    // Subscription always implies exactly one Target but not the reverse.
+    List<Delivery> findTop200ByTargetIdOrderByUpdatedAtDesc(UUID targetId);
+
+    List<Delivery> findTop200ByTargetIdAndStateOrderByUpdatedAtDesc(UUID targetId, DeliveryState state);
+
+    List<Delivery> findTop200BySubscriptionIdOrderByUpdatedAtDesc(UUID subscriptionId);
+
+    List<Delivery> findTop200BySubscriptionIdAndStateOrderByUpdatedAtDesc(UUID subscriptionId, DeliveryState state);
+
     /** Oldest-DEAD-first, bounded batch for DlqAutoReplayScheduler — oldest first so one
      *  perpetually-broken Target can't starve the rest of the DLQ backlog of ever being retried. */
     List<Delivery> findTop10ByStateOrderByUpdatedAtAsc(DeliveryState state);

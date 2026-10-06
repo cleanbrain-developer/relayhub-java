@@ -2,7 +2,7 @@ import { Fragment, FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { get, getAuthed, put, post } from "../api";
 import { isLoggedIn } from "../auth";
-import { CanonicalEvent, Delivery, DeliveryAttempt, DeliverySettings, DeliveryState, Target } from "../types";
+import { CanonicalEvent, Delivery, DeliveryAttempt, DeliverySettings, DeliveryState, Subscription, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { AttemptDetail } from "../components/AttemptDetail";
 import { EventDetail } from "../components/EventDetail";
@@ -14,9 +14,12 @@ export function DeliveriesPage() {
   const [params] = useSearchParams();
   const highlight = params.get("highlight");
   const [stateFilter, setStateFilter] = useState<DeliveryState | "ALL">("ALL");
+  const [targetFilter, setTargetFilter] = useState<string>("ALL");
+  const [subscriptionFilter, setSubscriptionFilter] = useState<string>("ALL");
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<Target[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(highlight);
   const [attempts, setAttempts] = useState<DeliveryAttempt[]>([]);
   const [detailAttemptId, setDetailAttemptId] = useState<string | null>(null);
@@ -35,6 +38,15 @@ export function DeliveriesPage() {
 
   const targetKeyById = useMemo(() => Object.fromEntries(targets.map((t) => [t.id, t.key])), [targets]);
 
+  // Subscription dropdown narrows to the selected Target's own Subscriptions (same cascading
+  // pattern as the Subscriptions-page create form) — picking a Subscription that belongs to a
+  // different Target than the one already selected would silently return zero rows.
+  const subscriptionsForTarget = useMemo(() => {
+    if (targetFilter === "ALL") return subscriptions;
+    const targetKey = targetKeyById[targetFilter];
+    return subscriptions.filter((s) => s.targetKey === targetKey);
+  }, [subscriptions, targetFilter, targetKeyById]);
+
   // Reacts to the ?highlight= param changing while already mounted on this route (react-router
   // reuses the component instance across search-param-only navigations, so the useState initial
   // value above only covers the first mount).
@@ -44,17 +56,33 @@ export function DeliveriesPage() {
 
   function reload() {
     setLoading(true);
-    const query = stateFilter === "ALL" ? "" : `?state=${stateFilter}`;
-    get<Delivery[]>(`/api/deliveries${query}`)
+    const params = new URLSearchParams();
+    if (subscriptionFilter !== "ALL") params.set("subscriptionId", subscriptionFilter);
+    else if (targetFilter !== "ALL") params.set("targetId", targetFilter);
+    if (stateFilter !== "ALL") params.set("state", stateFilter);
+    const query = params.toString();
+    get<Delivery[]>(`/api/deliveries${query ? `?${query}` : ""}`)
       .then(setDeliveries)
       .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(reload, [stateFilter]);
+  useEffect(reload, [stateFilter, targetFilter, subscriptionFilter]);
   useEffect(() => {
     get<Target[]>("/api/targets").then(setTargets).catch(() => {});
+    get<Subscription[]>("/api/subscriptions").then(setSubscriptions).catch(() => {});
   }, []);
+
+  // Changing the Target filter to one that doesn't include the currently-selected Subscription
+  // (or clearing it to "ALL") drops the now-invalid Subscription selection rather than silently
+  // querying for a combination that can't match anything.
+  useEffect(() => {
+    if (subscriptionFilter === "ALL") return;
+    if (!subscriptionsForTarget.some((s) => s.id === subscriptionFilter)) {
+      setSubscriptionFilter("ALL");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to targetFilter changing, not every subscriptionsForTarget identity change (would refire on every unrelated reload)
+  }, [targetFilter]);
 
   function loadPolicy() {
     get<DeliverySettings>("/api/delivery-settings")
@@ -206,6 +234,28 @@ export function DeliveriesPage() {
             {STATES.map((s) => (
               <option key={s} value={s}>
                 {s}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Target
+          <select value={targetFilter} onChange={(e) => setTargetFilter(e.target.value)}>
+            <option value="ALL">All Targets</option>
+            {targets.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.key}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Subscription
+          <select value={subscriptionFilter} onChange={(e) => setSubscriptionFilter(e.target.value)}>
+            <option value="ALL">All Subscriptions</option>
+            {subscriptionsForTarget.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </select>

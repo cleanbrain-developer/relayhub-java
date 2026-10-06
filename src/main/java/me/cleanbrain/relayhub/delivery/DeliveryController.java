@@ -20,15 +20,28 @@ public class DeliveryController {
     private final DeliveryService deliveryService;
 
     // eventId scopes to one Event's Deliveries (unchanged from before Spec 005 — every existing
-    // caller keeps working). Without it, state optionally filters (e.g. DEAD, for the DLQ view);
-    // with neither, returns the most recent 200 across all Deliveries — see DeliveryRepository's
-    // comment for why 200 and not real pagination.
+    // caller keeps working) and takes precedence over everything else. Otherwise subscriptionId
+    // and/or targetId optionally narrow to one Subscription/Target (subscriptionId wins if both
+    // are given, since a Subscription always implies exactly one Target but not the reverse —
+    // scale-out readiness review, 2026-10-06), and state optionally filters further on top of
+    // either. With none of the three, returns the most recent 200 across all Deliveries — see
+    // DeliveryRepository's comment for why 200 and not real pagination.
     @GetMapping
     public List<DeliveryResponse> list(@RequestParam(required = false) UUID eventId,
+                                        @RequestParam(required = false) UUID subscriptionId,
+                                        @RequestParam(required = false) UUID targetId,
                                         @RequestParam(required = false) DeliveryState state) {
         List<Delivery> deliveries;
         if (eventId != null) {
             deliveries = deliveryRepository.findByEventId(eventId);
+        } else if (subscriptionId != null) {
+            deliveries = state != null
+                    ? deliveryRepository.findTop200BySubscriptionIdAndStateOrderByUpdatedAtDesc(subscriptionId, state)
+                    : deliveryRepository.findTop200BySubscriptionIdOrderByUpdatedAtDesc(subscriptionId);
+        } else if (targetId != null) {
+            deliveries = state != null
+                    ? deliveryRepository.findTop200ByTargetIdAndStateOrderByUpdatedAtDesc(targetId, state)
+                    : deliveryRepository.findTop200ByTargetIdOrderByUpdatedAtDesc(targetId);
         } else if (state != null) {
             deliveries = deliveryRepository.findTop200ByStateOrderByUpdatedAtDesc(state);
         } else {
