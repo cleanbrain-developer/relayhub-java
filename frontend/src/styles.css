@@ -479,6 +479,35 @@ td button {
   border: 1px solid var(--ok);
 }
 
+.health-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+}
+
+.health-banner-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid var(--ok);
+}
+
+.health-banner-dead {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.health-banner a {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
 .toast-error {
   background: var(--danger-soft);
   color: var(--danger);

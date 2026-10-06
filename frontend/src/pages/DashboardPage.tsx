@@ -40,6 +40,24 @@ export function DashboardPage() {
       <h1>Dashboard</h1>
       {error && <p className="error">{error}</p>}
       {loading && <p className="muted">Loading...</p>}
+      {/* A plain-language "is it healthy" read at a glance — everything below this (stat tiles,
+          PromQL-driven charts) is real but developer-oriented; a non-technical operator shouldn't
+          have to parse raw metrics just to know whether something needs their attention right now
+          (scale-out readiness review, 2026-10-06 finding). Deliberately keyed only off `dead`, the
+          one signal that's unambiguously actionable — `pending` fluctuates normally and has no
+          known-good baseline to compare against yet. */}
+      {summary && (
+        <div className={`health-banner ${summary.dead > 0 ? "health-banner-dead" : "health-banner-ok"}`}>
+          {summary.dead > 0 ? (
+            <>
+              ⚠ {summary.dead} {summary.dead === 1 ? "delivery is" : "deliveries are"} stuck in the DLQ —{" "}
+              <Link to="/deliveries?state=DEAD">go fix {summary.dead === 1 ? "it" : "them"} &rarr;</Link>
+            </>
+          ) : (
+            <>✅ All systems healthy — {summary.succeeded} delivered successfully, nothing stuck in the DLQ.</>
+          )}
+        </div>
+      )}
       {summary && (
         <div className="stat-row">
           <div className="stat-tile">
