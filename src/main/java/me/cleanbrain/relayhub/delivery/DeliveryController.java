@@ -2,9 +2,12 @@ package me.cleanbrain.relayhub.delivery;
 
 import lombok.RequiredArgsConstructor;
 import me.cleanbrain.relayhub.common.NotFoundException;
+import me.cleanbrain.relayhub.delivery.dto.BulkReplayResponse;
 import me.cleanbrain.relayhub.delivery.dto.DeliveryAttemptResponse;
 import me.cleanbrain.relayhub.delivery.dto.DeliveryResponse;
 import me.cleanbrain.relayhub.delivery.dto.DeliverySummaryResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,6 +17,8 @@ import java.util.UUID;
 @RequestMapping("/api/deliveries")
 @RequiredArgsConstructor
 public class DeliveryController {
+
+    private static final Logger log = LoggerFactory.getLogger(DeliveryController.class);
 
     private final DeliveryRepository deliveryRepository;
     private final DeliveryAttemptRepository deliveryAttemptRepository;
@@ -72,5 +77,44 @@ public class DeliveryController {
     @PostMapping("/{deliveryId}/replay")
     public DeliveryResponse replay(@PathVariable UUID deliveryId) {
         return DeliveryResponse.from(deliveryService.replay(deliveryId));
+    }
+
+    // Admin-only (SecurityConfig: non-GET /api/** requires ADMIN) — replays up to 50 currently-DEAD
+    // Deliveries in one call, oldest-first, optionally scoped to one Target or Subscription (same
+    // subscriptionId-wins-over-targetId precedence as list()). Same real-HTTP-attempt-per-Delivery
+    // semantics as the single-replay endpoint, just looped — each replay() call goes through the
+    // injected deliveryService bean (not a self-invocation), so each still gets its own @Transactional
+    // boundary. One failing replay (e.g. a referenced Event/Subscription hard-deleted mid-batch) is
+    // caught and counted rather than aborting the rest of the batch (scale-out readiness review,
+    // 2026-10-06 finding: no bulk DLQ action existed at all — every replay required its own click).
+    @PostMapping("/bulk-replay")
+    public BulkReplayResponse bulkReplay(@RequestParam(required = false) UUID subscriptionId,
+                                          @RequestParam(required = false) UUID targetId) {
+        List<Delivery> candidates;
+        if (subscriptionId != null) {
+            candidates = deliveryRepository.findTop50BySubscriptionIdAndStateOrderByUpdatedAtAsc(subscriptionId, DeliveryState.DEAD);
+        } else if (targetId != null) {
+            candidates = deliveryRepository.findTop50ByTargetIdAndStateOrderByUpdatedAtAsc(targetId, DeliveryState.DEAD);
+        } else {
+            candidates = deliveryRepository.findTop50ByStateOrderByUpdatedAtAsc(DeliveryState.DEAD);
+        }
+
+        int succeeded = 0;
+        int stillDead = 0;
+        int errors = 0;
+        for (Delivery candidate : candidates) {
+            try {
+                Delivery result = deliveryService.replay(candidate.getId());
+                if (result.getState() == DeliveryState.DEAD) {
+                    stillDead++;
+                } else {
+                    succeeded++;
+                }
+            } catch (Exception e) {
+                errors++;
+                log.warn("Bulk replay: Delivery {} failed to replay", candidate.getId(), e);
+            }
+        }
+        return new BulkReplayResponse(candidates.size(), succeeded, stillDead, errors);
     }
 }

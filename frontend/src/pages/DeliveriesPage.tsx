@@ -166,6 +166,46 @@ export function DeliveriesPage() {
     }
   }
 
+  async function bulkReplay() {
+    const scopeLabel =
+      subscriptionFilter !== "ALL"
+        ? "this Subscription's"
+        : targetFilter !== "ALL"
+          ? `Target "${targetKeyById[targetFilter]}"'s`
+          : "all";
+    if (
+      !confirm(
+        `Replay up to 50 of ${scopeLabel} currently-DEAD Deliveries, oldest first? Each makes one more real attempt against its live Target.`
+      )
+    )
+      return;
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (subscriptionFilter !== "ALL") params.set("subscriptionId", subscriptionFilter);
+      else if (targetFilter !== "ALL") params.set("targetId", targetFilter);
+      const result = await post<{ attempted: number; succeeded: number; stillDead: number; errors: number }>(
+        `/api/deliveries/bulk-replay${params.toString() ? `?${params}` : ""}`,
+        null
+      );
+      reload();
+      if (result.attempted === 0) {
+        notify("No DEAD Deliveries to replay in this scope.");
+      } else {
+        notify(
+          `Bulk replay: ${result.attempted} attempted, ${result.succeeded} succeeded, ${result.stillDead} still DEAD` +
+            (result.errors > 0 ? `, ${result.errors} error(s)` : "") +
+            "."
+        );
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      notify((err as Error).message, "error");
+    }
+  }
+
+  const deadInView = deliveries.filter((d) => d.state === "DEAD").length;
+
   return (
     <div>
       <h1>Deliveries</h1>
@@ -261,6 +301,7 @@ export function DeliveriesPage() {
           </select>
         </label>
         <span className="muted">Showing the most recent {deliveries.length} (capped at 200).</span>
+        {loggedIn && deadInView > 0 && <button onClick={bulkReplay}>Replay all DEAD in view</button>}
       </div>
 
       <table>

@@ -36,6 +36,18 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
     List<Delivery> findTop200BySubscriptionIdAndStateOrderByUpdatedAtDesc(UUID subscriptionId, DeliveryState state);
 
+    // Bulk-replay batch (scale-out readiness review, 2026-10-06 finding: operators had to replay
+    // DEAD deliveries one at a time, even when chasing down a single Target's whole backlog).
+    // Oldest-first and capped at 50, same "don't starve the backlog, bound one request's worst-case
+    // latency" reasoning as DlqAutoReplayScheduler's own findTop10By...OrderByUpdatedAtAsc — each
+    // replay is a real synchronous HTTP attempt, so an unbounded batch could make one API call take
+    // minutes.
+    List<Delivery> findTop50ByStateOrderByUpdatedAtAsc(DeliveryState state);
+
+    List<Delivery> findTop50ByTargetIdAndStateOrderByUpdatedAtAsc(UUID targetId, DeliveryState state);
+
+    List<Delivery> findTop50BySubscriptionIdAndStateOrderByUpdatedAtAsc(UUID subscriptionId, DeliveryState state);
+
     /** Oldest-DEAD-first, bounded batch for DlqAutoReplayScheduler — oldest first so one
      *  perpetually-broken Target can't starve the rest of the DLQ backlog of ever being retried. */
     List<Delivery> findTop10ByStateOrderByUpdatedAtAsc(DeliveryState state);
