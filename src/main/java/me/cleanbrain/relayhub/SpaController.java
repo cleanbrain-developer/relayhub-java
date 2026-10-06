@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class SpaController {
 
     @GetMapping({
-            "/", "/sources", "/targets", "/subscriptions", "/deliveries", "/live", "/login",
+            "/", "/sources", "/targets", "/subscriptions", "/deliveries", "/settings", "/live", "/login",
             "/sources/*", "/targets/*", "/subscriptions/*"
     })
     public String index() {

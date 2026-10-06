@@ -42,6 +42,7 @@ export function Nav() {
         <NavLink to="/targets">Targets</NavLink>
         <NavLink to="/subscriptions">Subscriptions</NavLink>
         <NavLink to="/deliveries">Deliveries</NavLink>
+        <NavLink to="/settings">Settings</NavLink>
         <NavLink to="/live">Live</NavLink>
       </div>
       <span className="nav-spacer" />

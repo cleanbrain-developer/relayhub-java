@@ -1,6 +1,6 @@
-import { Fragment, FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { get, getAuthed, put, post } from "../api";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { get, getAuthed, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { CanonicalEvent, Delivery, DeliveryAttempt, DeliverySettings, DeliveryState, Subscription, Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
@@ -29,10 +29,6 @@ export function DeliveriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
   const [autoReplayIntervalMs, setAutoReplayIntervalMs] = useState<number | null>(null);
-  const [editingPolicy, setEditingPolicy] = useState(false);
-  const [maxAttemptsForm, setMaxAttemptsForm] = useState("");
-  const [autoReplaySecondsForm, setAutoReplaySecondsForm] = useState("");
-  const [policyError, setPolicyError] = useState<string | null>(null);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
 
@@ -84,38 +80,16 @@ export function DeliveriesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to targetFilter changing, not every subscriptionsForTarget identity change (would refire on every unrelated reload)
   }, [targetFilter]);
 
-  function loadPolicy() {
+  // Read-only summary only — editing the policy now lives on /settings (scale-out readiness
+  // review, 2026-10-06: this page isn't where an operator would think to look for "settings").
+  useEffect(() => {
     get<DeliverySettings>("/api/delivery-settings")
       .then((s) => {
         setMaxAttempts(s.maxAttempts);
         setAutoReplayIntervalMs(s.autoReplayIntervalMs);
       })
       .catch(() => {});
-  }
-
-  useEffect(loadPolicy, []);
-
-  async function savePolicy(e: FormEvent) {
-    e.preventDefault();
-    setPolicyError(null);
-    const parsedMaxAttempts = Number(maxAttemptsForm);
-    const parsedIntervalMs = Number(autoReplaySecondsForm) * 1000;
-    try {
-      const updated = await put<DeliverySettings>("/api/delivery-settings", {
-        maxAttempts: parsedMaxAttempts,
-        autoReplayIntervalMs: parsedIntervalMs,
-      });
-      setMaxAttempts(updated.maxAttempts);
-      setAutoReplayIntervalMs(updated.autoReplayIntervalMs);
-      setEditingPolicy(false);
-      notify(
-        `Retry policy updated — up to ${updated.maxAttempts} attempt(s) before DEAD, auto-replay every ${Math.round(updated.autoReplayIntervalMs / 1000)}s.`
-      );
-    } catch (err) {
-      setPolicyError((err as Error).message);
-      notify((err as Error).message, "error");
-    }
-  }
+  }, []);
 
   useEffect(() => {
     // Attempts carry the real request/response bodies exchanged with a Target — public, same as
@@ -211,60 +185,12 @@ export function DeliveriesPage() {
       <h1>Deliveries</h1>
       {error && <p className="error">{error}</p>}
 
-      <div className="card form-card" style={{ marginBottom: "1.25rem" }}>
-        {!editingPolicy ? (
-          <div className="page-header" style={{ marginBottom: 0 }}>
-            <span>
-              Retry policy: up to <strong>{maxAttempts ?? "?"}</strong> attempt(s) before a Delivery is marked{" "}
-              <strong>DEAD</strong> (DLQ). Auto-replay sweeps the DLQ every{" "}
-              <strong>{autoReplayIntervalMs !== null ? Math.round(autoReplayIntervalMs / 1000) : "?"}s</strong>.
-            </span>
-            {loggedIn && maxAttempts !== null && autoReplayIntervalMs !== null && (
-              <button
-                onClick={() => {
-                  setMaxAttemptsForm(String(maxAttempts));
-                  setAutoReplaySecondsForm(String(Math.round(autoReplayIntervalMs / 1000)));
-                  setPolicyError(null);
-                  setEditingPolicy(true);
-                }}
-              >
-                Edit
-              </button>
-            )}
-          </div>
-        ) : (
-          <form onSubmit={savePolicy} className="filter-row" style={{ alignItems: "flex-end" }}>
-            <label>
-              Max attempts before DEAD
-              <input
-                type="number"
-                min={1}
-                max={10}
-                required
-                value={maxAttemptsForm}
-                onChange={(e) => setMaxAttemptsForm(e.target.value)}
-              />
-            </label>
-            <label>
-              Auto-replay every (seconds)
-              <input
-                type="number"
-                min={5}
-                max={3600}
-                required
-                value={autoReplaySecondsForm}
-                onChange={(e) => setAutoReplaySecondsForm(e.target.value)}
-              />
-            </label>
-            <button type="submit" className="btn-primary">
-              Save
-            </button>
-            <button type="button" onClick={() => setEditingPolicy(false)}>
-              Cancel
-            </button>
-            {policyError && <p className="error">{policyError}</p>}
-          </form>
-        )}
+      <div className="page-header" style={{ marginBottom: "1.25rem" }}>
+        <span className="muted">
+          Retry policy: up to <strong>{maxAttempts ?? "?"}</strong> attempt(s) before DEAD, auto-replay every{" "}
+          <strong>{autoReplayIntervalMs !== null ? Math.round(autoReplayIntervalMs / 1000) : "?"}s</strong>.
+        </span>
+        <Link to="/settings">Manage in Settings</Link>
       </div>
 
       <div className="filter-row">

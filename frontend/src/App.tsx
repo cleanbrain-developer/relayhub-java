@@ -15,6 +15,7 @@ const SubscriptionDetailPage = lazy(() =>
   import("./pages/SubscriptionDetailPage").then((m) => ({ default: m.SubscriptionDetailPage })),
 );
 const DeliveriesPage = lazy(() => import("./pages/DeliveriesPage").then((m) => ({ default: m.DeliveriesPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const LivePage = lazy(() => import("./pages/LivePage").then((m) => ({ default: m.LivePage })));
 const LoginPage = lazy(() => import("./pages/LoginPage").then((m) => ({ default: m.LoginPage })));
 
@@ -34,6 +35,7 @@ export function App() {
               <Route path="/subscriptions" element={<SubscriptionsPage />} />
               <Route path="/subscriptions/:id" element={<SubscriptionDetailPage />} />
               <Route path="/deliveries" element={<DeliveriesPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/live" element={<LivePage />} />
               <Route path="/login" element={<LoginPage />} />
             </Routes>

@@ -46,7 +46,7 @@ class SpaControllerTest {
     void everyClientSideRouteForwardsToIndexInsteadOf404ing() {
         String baseUrl = "http://localhost:" + port;
         for (String path : new String[]{
-                "/", "/sources", "/targets", "/subscriptions", "/deliveries", "/live", "/login",
+                "/", "/sources", "/targets", "/subscriptions", "/deliveries", "/settings", "/live", "/login",
                 // The detail routes Stage 3 added -- the ones that were missing here.
                 "/sources/some-key", "/targets/some-key", "/subscriptions/" + java.util.UUID.randomUUID(),
         }) {
