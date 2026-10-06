@@ -275,3 +275,11 @@ Backoff is exponential (`initialBackoffMs * backoffMultiplier^(attemptNumber-1)`
   deliberate, documented deferral, not an oversight. See
   `docs/decisions/ADR-0006-no-ingress-rate-limiting.md` for the full reasoning and the trigger for
   revisiting it (a real, non-demo Source being connected).
+- **Single-tenant, single-environment per deployed instance** — no `tenantId`, no multi-operator
+  access scoping, no staging/production split within one running instance. Scaling out means more
+  RelayHub instances (one per team/service), not multi-tenancy inside one. See
+  `docs/decisions/ADR-0007-single-tenant-single-environment.md`.
+- **`/api/**` (the admin console's own API) is unversioned**, unlike `/ingress/v1/**` — a
+  deliberate asymmetry, not an inconsistency: frontend and backend are always built and deployed
+  together from this one repository, so there's no real compatibility problem versioning would
+  solve. See `docs/decisions/ADR-0008-unversioned-admin-api.md`.
