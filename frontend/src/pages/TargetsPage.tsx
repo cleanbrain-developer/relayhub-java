@@ -4,6 +4,7 @@ import { get, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Target } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { SearchBox } from "../components/SearchBox";
 import { useToast } from "../toast";
 
 const emptyForm = {
@@ -25,6 +26,7 @@ export function TargetsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
@@ -53,7 +55,16 @@ export function TargetsPage() {
     }
   }
 
-  const visible = targets.filter((t) => showInactive || t.status === "ACTIVE");
+  const query = search.trim().toLowerCase();
+  const visible = targets
+    .filter((t) => showInactive || t.status === "ACTIVE")
+    .filter(
+      (t) =>
+        !query ||
+        t.key.toLowerCase().includes(query) ||
+        t.name.toLowerCase().includes(query) ||
+        t.baseUrl.toLowerCase().includes(query)
+    );
 
   return (
     <div>
@@ -67,10 +78,13 @@ export function TargetsPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      <label className="inline-checkbox">
-        <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-        Show deactivated (soft-deleted) Targets too
-      </label>
+      <div className="list-controls">
+        <label className="inline-checkbox">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+          Show deactivated (soft-deleted) Targets too
+        </label>
+        <SearchBox value={search} onChange={setSearch} placeholder="Search by key, name, base URL..." />
+      </div>
 
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
@@ -124,7 +138,13 @@ export function TargetsPage() {
         ))}
         {loading && <p className="muted">Loading Targets...</p>}
         {!loading && visible.length === 0 && (
-          <p className="muted">{targets.length === 0 ? "No Targets yet." : "No active Targets — try “Show deactivated”."}</p>
+          <p className="muted">
+            {targets.length === 0
+              ? "No Targets yet."
+              : query
+                ? `No Targets match "${search}".`
+                : "No active Targets — try “Show deactivated”."}
+          </p>
         )}
       </div>
     </div>

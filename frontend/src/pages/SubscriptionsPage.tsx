@@ -5,6 +5,7 @@ import { isLoggedIn } from "../auth";
 import { Source, SourceEvent, Subscription, Target, TargetEndpoint } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
 import { MappingBuilder } from "../components/MappingBuilder";
+import { SearchBox } from "../components/SearchBox";
 import { useToast } from "../toast";
 
 const emptyForm = {
@@ -35,6 +36,7 @@ export function SubscriptionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
@@ -110,7 +112,18 @@ export function SubscriptionsPage() {
     }
   }
 
-  const visible = subscriptions.filter((s) => showInactive || s.status === "ACTIVE");
+  const query = search.trim().toLowerCase();
+  const visible = subscriptions
+    .filter((s) => showInactive || s.status === "ACTIVE")
+    .filter(
+      (s) =>
+        !query ||
+        s.name.toLowerCase().includes(query) ||
+        s.sourceKey.toLowerCase().includes(query) ||
+        s.sourceEventKey.toLowerCase().includes(query) ||
+        s.targetKey.toLowerCase().includes(query) ||
+        s.targetEndpointKey.toLowerCase().includes(query)
+    );
 
   return (
     <div>
@@ -124,10 +137,13 @@ export function SubscriptionsPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      <label className="inline-checkbox">
-        <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-        Show deactivated (soft-deleted) Subscriptions too
-      </label>
+      <div className="list-controls">
+        <label className="inline-checkbox">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+          Show deactivated (soft-deleted) Subscriptions too
+        </label>
+        <SearchBox value={search} onChange={setSearch} placeholder="Search by name, source, target..." />
+      </div>
 
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
@@ -268,7 +284,11 @@ export function SubscriptionsPage() {
         {loading && <p className="muted">Loading Subscriptions...</p>}
         {!loading && visible.length === 0 && (
           <p className="muted">
-            {subscriptions.length === 0 ? "No Subscriptions yet." : "No active Subscriptions — try “Show deactivated”."}
+            {subscriptions.length === 0
+              ? "No Subscriptions yet."
+              : query
+                ? `No Subscriptions match "${search}".`
+                : "No active Subscriptions — try “Show deactivated”."}
           </p>
         )}
       </div>

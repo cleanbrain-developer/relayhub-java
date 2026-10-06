@@ -4,6 +4,7 @@ import { get, post } from "../api";
 import { isLoggedIn } from "../auth";
 import { Source } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { SearchBox } from "../components/SearchBox";
 import { useToast } from "../toast";
 
 const emptyForm = { key: "", name: "", description: "", authenticationType: "NONE" as const, authenticationConfig: "" };
@@ -19,6 +20,7 @@ export function SourcesPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState(emptyForm);
   const loggedIn = isLoggedIn();
   const { notify } = useToast();
@@ -47,7 +49,16 @@ export function SourcesPage() {
     }
   }
 
-  const visible = sources.filter((s) => showInactive || s.status === "ACTIVE");
+  const query = search.trim().toLowerCase();
+  const visible = sources
+    .filter((s) => showInactive || s.status === "ACTIVE")
+    .filter(
+      (s) =>
+        !query ||
+        s.key.toLowerCase().includes(query) ||
+        s.name.toLowerCase().includes(query) ||
+        s.description.toLowerCase().includes(query)
+    );
 
   return (
     <div>
@@ -61,10 +72,13 @@ export function SourcesPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      <label className="inline-checkbox">
-        <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
-        Show deactivated (soft-deleted) Sources too
-      </label>
+      <div className="list-controls">
+        <label className="inline-checkbox">
+          <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+          Show deactivated (soft-deleted) Sources too
+        </label>
+        <SearchBox value={search} onChange={setSearch} placeholder="Search by key, name, description..." />
+      </div>
 
       {showCreate && loggedIn && (
         <form onSubmit={handleCreate} className="card form-card">
@@ -109,7 +123,13 @@ export function SourcesPage() {
         ))}
         {loading && <p className="muted">Loading Sources...</p>}
         {!loading && visible.length === 0 && (
-          <p className="muted">{sources.length === 0 ? "No Sources yet." : "No active Sources — try “Show deactivated”."}</p>
+          <p className="muted">
+            {sources.length === 0
+              ? "No Sources yet."
+              : query
+                ? `No Sources match "${search}".`
+                : "No active Sources — try “Show deactivated”."}
+          </p>
         )}
       </div>
     </div>
