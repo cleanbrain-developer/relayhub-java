@@ -70,8 +70,6 @@ export function SourcesPage() {
           </button>
         )}
       </div>
-      {error && <p className="error">{error}</p>}
-
       <div className="list-controls">
         <label className="inline-checkbox">
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
@@ -103,6 +101,7 @@ export function SourcesPage() {
           <p className="muted" style={{ margin: 0 }}>
             Authentication can be configured after creation, from the Source's own page.
           </p>
+          {error && <p className="error">{error}</p>}
           <button type="submit" className="btn-primary">
             Create Source
           </button>
