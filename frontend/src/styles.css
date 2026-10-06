@@ -402,6 +402,16 @@ button:hover {
   background: var(--bg);
 }
 
+/* :focus-visible (not plain :focus) so this only shows for keyboard/assistive-tech navigation,
+   not every mouse click — buttons/links previously fell back to each browser's own default
+   outline, inconsistent (and sometimes low-contrast against the dark theme) rather than matching
+   the accent ring inputs/selects/textareas already get. */
+button:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 button:disabled {
   opacity: 0.55;
   cursor: default;
@@ -562,6 +572,7 @@ td button {
 
 .filter-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
   margin-bottom: 0.75rem;
@@ -1124,6 +1135,31 @@ code {
   font-size: 0.88rem;
 }
 
+/* Stops every CSS keyframe/transition animation on request — the ambient, continuously-looping
+   ones (Live page's title shimmer, star drift, hub pulse) are the kind most likely to actually
+   bother a vestibular-sensitive user, more than the one-off per-event effects. Does not reach
+   LivePage's own requestAnimationFrame-driven missile-pulse animation (JS-computed positions, not
+   a CSS animation) — that page's flashier effects were an explicit maintainer request and are left
+   alone here; this only covers everything CSS actually controls. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 960px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 640px) {
   .form-grid {
     grid-template-columns: 1fr;
@@ -1153,11 +1189,8 @@ code {
   .nav-visitor-count {
     padding: 0.3rem 0.7rem;
   }
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
+  /* table's own overflow-x/display/white-space rule now lives in the wider 960px breakpoint above
+     — this block (≤640px) is still within that range, so it already applies here too. */
   /* Scaling the topology svg down to fit a phone's width via preserveAspectRatio alone shrinks its
      fixed-size node labels below legibility; scroll it horizontally at a readable size instead. */
   .live-topology {
