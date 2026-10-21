@@ -39,7 +39,7 @@ dependencies {
     // system-design.md's stack table always said "Contract: OpenAPI / JSON Schema" but this was
     // never actually added, leaving no machine-checkable API contract for a Node/Go sibling
     // implementation to replicate against. See docs/architecture/api-contract.md.
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
 
     runtimeOnly("org.postgresql:postgresql")
 
