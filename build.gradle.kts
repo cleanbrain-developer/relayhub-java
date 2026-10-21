@@ -32,7 +32,7 @@ dependencies {
     implementation("io.opentelemetry:opentelemetry-exporter-zipkin")
 
     implementation("com.jayway.jsonpath:json-path:2.9.0")
-    implementation("com.networknt:json-schema-validator:1.5.1")
+    implementation("com.networknt:json-schema-validator:3.0.7")
 
     // Generates the OpenAPI 3 contract from the existing @RestController/record-DTO surface at
     // runtime (GET /v3/api-docs, browsable at /swagger-ui.html) — self-review finding, 2026-10-02:
